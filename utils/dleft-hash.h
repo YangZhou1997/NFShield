@@ -142,6 +142,43 @@ value_t * dleft_lookup(dleft_meta_t *ht_ptr, five_tuple_t key)
 	return NULL;
 }
 
+#ifdef VALUE_TYPE
+#if VALUE_TYPE == BOOL
+
+void dleft_dump(dleft_meta_t *ht_ptr, char * filename)
+{
+    FILE *file = fopen(filename, "w");
+    
+    uint32_t *occupy_set = ht_ptr->occupy_set;
+    bucket_list_t * dleft = ht_ptr->dleft;
+
+    for(int i = 0; i < ht_ptr->table_size; i++)
+    {
+        uint32_t bit_set = occupy_set[i] & (BUCKET_MASK);
+
+        uint32_t idx = 0;
+        while(bit_set)
+        {
+            if(bit_set & 1)
+            {
+                five_tuple_t flow = dleft[i].entry[idx].key;
+                uint8_t val = dleft[i].entry[idx].value ? 1 : 0;
+                fwrite(&flow.srcip, sizeof(uint32_t), 1, file);
+                fwrite(&flow.dstip, sizeof(uint32_t), 1, file);
+                fwrite(&flow.srcport, sizeof(uint16_t), 1, file);
+                fwrite(&flow.dstport, sizeof(uint16_t), 1, file);
+                fwrite(&flow.proto, sizeof(uint8_t), 1, file);
+                fwrite(&val, sizeof(uint8_t), 1, file);
+            }
+            bit_set >>=1;
+            idx++;
+        }
+    }
+    fclose(file);
+}
+#endif
+#endif
+
 
 // On success, return 1; otherwise, return -1;
 int dleft_delete(dleft_meta_t *ht_ptr, five_tuple_t key)

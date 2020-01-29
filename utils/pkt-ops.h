@@ -38,34 +38,6 @@ swap_mac_addr(uint8_t *pkt_ptr)
 //     return new_key;
 // }
 
-
-void set_five_tuple(uint8_t *pkt_ptr, five_tuple_t key)
-{
-    uint8_t ihl = *CAST_PTR(uint8_t *, pkt_ptr + 14) & 0xF; // ihl * 4 is the IP header length.
-    uint8_t *proto = CAST_PTR(uint8_t *, pkt_ptr + 14 + 9);
-    uint64_t *ips = CAST_PTR(uint64_t *, pkt_ptr + 14 + 12);
-    uint32_t *ports = CAST_PTR(uint32_t *, pkt_ptr + 14 + (ihl << 2));
-
-    *proto = key.proto;
-    *ips = (((uint64_t)key.dstip) << 32) | ((uint64_t)key.srcip);
-    *ports = (((uint32_t)key.dstip) << 16) | ((uint32_t)key.srcip);
-
-}
-
-
-void get_five_tuple(uint8_t *pkt_ptr, five_tuple_t *key)
-{
-    uint8_t ihl = *CAST_PTR(uint8_t *, pkt_ptr + 14) & 0xF; // ihl * 4 is the IP header length.
-    uint8_t proto = *CAST_PTR(uint8_t *, pkt_ptr + 14 + 9);
-    uint64_t ips = *CAST_PTR(uint64_t *, pkt_ptr + 14 + 12);
-    uint32_t ports = *CAST_PTR(uint32_t *, pkt_ptr + 14 + (ihl << 2));
-
-    *CAST_PTR(uint64_t *, key) = ips;
-    *CAST_PTR(uint32_t *, CAST_PTR(uint64_t*, key) + 1) = ports;
-    key->proto = proto;
-}
-
-
 uint16_t get_eth_type(uint8_t *pkt_ptr)
 {
     uint16_t eth_type = 0;
@@ -124,25 +96,25 @@ void set_dst_ip(uint8_t *pkt_ptr, uint32_t ip_addr)
 
 uint16_t get_src_port(uint8_t *pkt_ptr)
 {
-    uint8_t ihl = *CAST_PTR(uint8_t *, pkt_ptr + 14) & 0xF; // ihl * 4 is the IP header length.
-    uint16_t port = *CAST_PTR(uint16_t *, pkt_ptr + 14 + (ihl << 2));
+    // uint8_t ihl = *CAST_PTR(uint8_t *, pkt_ptr + 14) & 0xF; // ihl * 4 is the IP header length.
+    uint16_t port = *CAST_PTR(uint16_t *, pkt_ptr + 14 + 20);
     return port;
 }
 void set_src_port(uint8_t *pkt_ptr, uint16_t port_num)
 {
-    uint8_t ihl = *CAST_PTR(uint8_t *, pkt_ptr + 14) & 0xF; // ihl * 4 is the IP header length.
-    *CAST_PTR(uint16_t *, pkt_ptr + 14 + (ihl << 2)) = port_num;
+    // uint8_t ihl = *CAST_PTR(uint8_t *, pkt_ptr + 14) & 0xF; // ihl * 4 is the IP header length.
+    *CAST_PTR(uint16_t *, pkt_ptr + 14 + 20) = port_num;
 }
 uint16_t get_dst_port(uint8_t *pkt_ptr)
 {
-    uint8_t ihl = *CAST_PTR(uint8_t *, pkt_ptr + 14) & 0xF; // ihl * 4 is the IP header length.
-    uint16_t port = *CAST_PTR(uint16_t *, pkt_ptr + 14 + (ihl << 2) + 2);
+    // uint8_t ihl = *CAST_PTR(uint8_t *, pkt_ptr + 14) & 0xF; // ihl * 4 is the IP header length.
+    uint16_t port = *CAST_PTR(uint16_t *, pkt_ptr + 14 + 20 + 2);
     return port;
 }
 void set_dst_port(uint8_t *pkt_ptr, uint16_t port_num)
 {
-    uint8_t ihl = *CAST_PTR(uint8_t *, pkt_ptr + 14) & 0xF; // ihl * 4 is the IP header length.
-    *CAST_PTR(uint16_t *, pkt_ptr + 14 + (ihl << 2) + 2) = port_num;
+    // uint8_t ihl = *CAST_PTR(uint8_t *, pkt_ptr + 14) & 0xF; // ihl * 4 is the IP header length.
+    *CAST_PTR(uint16_t *, pkt_ptr + 14 + 20 + 2) = port_num;
 }
 
 
@@ -155,6 +127,27 @@ void set_proto(uint8_t *pkt_ptr, uint8_t proto)
 {
     *CAST_PTR(uint8_t *, pkt_ptr + 14 + 9) = CAST_PTR(uint8_t, proto);
 }
+
+
+void set_five_tuple(uint8_t *pkt_ptr, five_tuple_t key)
+{
+    set_src_ip(pkt_ptr, key.srcip);
+    set_dst_ip(pkt_ptr, key.dstip);
+    set_src_port(pkt_ptr, key.srcport);
+    set_dst_port(pkt_ptr, key.dstport);
+    set_proto(pkt_ptr, key.proto);
+}
+
+
+void get_five_tuple(uint8_t *pkt_ptr, five_tuple_t *key)
+{
+    key->srcip = get_src_ip(pkt_ptr);
+    key->dstip = get_dst_ip(pkt_ptr);
+    key->srcport = get_src_port(pkt_ptr);
+    key->dstport = get_dst_port(pkt_ptr);
+    key->proto = get_proto(pkt_ptr);
+}
+
 
 #ifdef	__cplusplus
 /* *INDENT-OFF* */

@@ -105,7 +105,34 @@ static inline bool matches(five_tuple_t flow, acl_t acl)
             return false;
         }
 }
+#define NTOHS(x) (((x & 0xF) << 4) | ((x >> 4) & 0xF))
 
+void recover_hashmap(){
+    FILE *file = fopen("/users/yangzhou/acl-fw-hashmap-dleft.raw", "r");
+    if (file == NULL){
+        printf("recovery file open error");
+        exit(0);
+    }
+    uint32_t srcip, dstip;
+    uint16_t srcport, dstport;
+    uint8_t proto;
+    uint8_t val;
+    uint32_t cnt = 0;
+    while(fread(&srcip, sizeof(uint32_t), 1, file) != 0){
+        fread(&dstip, sizeof(uint32_t), 1, file);
+        fread(&srcport, sizeof(uint16_t), 1, file);
+        fread(&dstport, sizeof(uint16_t), 1, file);
+        fread(&proto, sizeof(uint8_t), 1, file);
+        fread(&val, sizeof(uint8_t), 1, file);
+        five_tuple_t flow = { .srcip = srcip, .dstip = dstip, .srcport = srcport, .dstport = dstport, .proto = proto };
+        // if(cnt <= 8){
+        //     printf("recover: %x %x %hu %hu %hu\n", flow.srcip, flow.dstip, flow.srcport, flow.dstport, flow.proto);
+        // }
+        cnt++;
+        dleft_update(&ht_meta_cache, flow, val == 1);
+    }
+    printf("recover down\n");
+}
 
 int main(){
     if(-1 == dleft_init("acl-fw", HT_SIZE, &ht_meta))
@@ -126,6 +153,8 @@ int main(){
     
     uint32_t pkt_cnt = 0;
     uint32_t pkt_count_match = 0;
+    
+    recover_hashmap();
 
     while(1){
         pkt_t *raw_pkt = next_pkt();
@@ -140,13 +169,11 @@ int main(){
 #ifdef DEBUG
         uint64_t src_mac = get_src_mac(pkt_ptr);
         uint64_t dst_mac = get_dst_mac(pkt_ptr);
+        if(pkt_cnt <= 8){
+            printf("%lx %lx %x %x %hu %hu %hu\n", src_mac, dst_mac, flow.srcip, flow.dstip, flow.srcport, flow.dstport, flow.proto);
+        }
 #endif
 
-#ifdef DEBUG
-        printf("%lx %lx %x %x %hu %hu %hu\n", src_mac, dst_mac, flow.srcip, flow.dstip, flow.srcport, flow.dstport, flow.proto);
-#endif
-
-// #define DEBUG
 		bool flag = false;
 		bool dropped = false;
 		bool *res_ptr = dleft_lookup(&ht_meta_cache, flow);
@@ -178,10 +205,14 @@ int main(){
 			dleft_update(&ht_meta_cache, flow, dropped);
 		}
         
-        pkt_cnt ++;
         if(pkt_cnt % (1024 * 1024 / 64) == 0) {
             printf("%s packets processed: %u\n", "lpm", pkt_cnt);
         }
+        // if(pkt_cnt == 1024 * 1024) {
+        //     dleft_dump(&ht_meta_cache, "/users/yangzhou/acl-fw-hashmap-dleft.raw");
+        //     break;
+        // }
+        pkt_cnt ++;        
     }
 
     dleft_destroy(&ht_meta);
