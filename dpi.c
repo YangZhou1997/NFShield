@@ -5,19 +5,28 @@
 #include "./utils/common.h"
 #include "./utils/pkt-ops.h"
 #include "./utils/common.h"
-#include "./utils/dleft-hash.h"
+#include "./utils/ahocorasick.h"
 #include "./utils/pkt-puller.h"
-
-#define HT_SIZE (0.5 * 1024 * 1024)
-static dleft_meta_t ht_meta;
 
 int main(){
 
-    if(-1 == dleft_init("monitoring", HT_SIZE, &ht_meta))
-    {
-        printf("bootmemory allocation error\n");
-        return 0;
+    struct ahocorasick aho;
+    uint32_t match_total = 0;
+
+    aho_init(&aho);
+
+    FILE * file_rule = fopen("./sentense.rules", "r");
+    char rule_buf[1024];
+    int read, len = 0;
+
+    while(fgets(rule_buf, 1023, file_rule)) {
+        len = strlen(rule_buf);
+        rule_buf[len - 1] = '\0';
+        // printf("%d: %s\n", len, rule_buf);
+        aho_add_match_text(&aho, rule_buf, len);
     }
+
+    aho_create_trie(&aho);
 
     srand((unsigned)time(NULL));
    
@@ -29,16 +38,14 @@ int main(){
         uint16_t pkt_len = raw_pkt->len;
         swap_mac_addr(pkt_ptr);
 
-        five_tuple_t flow;
-        get_five_tuple(pkt_ptr, &flow);
-        dleft_add_value(&ht_meta, flow, 1);
+        match_total += aho_findtext(&aho, pkt_ptr + 54, pkt_len - 54);
 
         pkt_cnt ++;
         if(pkt_cnt % (1024 * 1024 / 64) == 0) {
             printf("%s packets processed: %u\n", "dpi", pkt_cnt);
         }
     }    
-    dleft_destroy(&ht_meta);
+    aho_destroy(&aho);
 
     return 0;
 }
