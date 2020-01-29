@@ -8,7 +8,7 @@ CFLAGS := -g -O2 $(ARM_FLAGS) -lm
 
 CPPFLAGS := $(CFLAGS)
 
-TEST_PROGS := lpm acl-fw
+TEST_PROGS := lpm acl-fw maglev monitoring nat-tcp-v4
 
 
 # ==== Rules ==================================================================

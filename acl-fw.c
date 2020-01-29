@@ -206,7 +206,7 @@ int main(){
 		}
         
         if(pkt_cnt % (1024 * 1024 / 64) == 0) {
-            printf("%s packets processed: %u\n", "lpm", pkt_cnt);
+            printf("%s packets processed: %u\n", "acl-fw", pkt_cnt);
         }
         // if(pkt_cnt == 1024 * 1024) {
         //     dleft_dump(&ht_meta_cache, "/users/yangzhou/acl-fw-hashmap-dleft.raw");
