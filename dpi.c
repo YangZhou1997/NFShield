@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-#define VALUE_TYPE U32
 
 #include "./utils/common.h"
 #include "./utils/pkt-ops.h"
@@ -15,7 +14,8 @@ int main(){
 
     aho_init(&aho);
 
-    FILE * file_rule = fopen("./sentense.rules", "r");
+    // You must use absolute address, otherwise gem5 will show "Page table fault when accessing virtual address 0"
+    FILE * file_rule = fopen("/users/yangzhou/NF-GEM5/sentense.rules", "r");
     char rule_buf[1024];
     int read, len = 0;
 
