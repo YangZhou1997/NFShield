@@ -25,7 +25,7 @@ int main(){
  
     srand((unsigned)time(NULL));
    
-    load_pkt("/users/yangzhou/ictf2010_1Mflow.dat");
+    load_pkt("/users/yangzhou/ictf2010_100kflow.dat");
     uint32_t pkt_cnt = 0;
     while(1){
         pkt_t *raw_pkt = next_pkt();
