@@ -1,7 +1,6 @@
-test_gem5_threads/
 lpm
 acl-fw
-dpi
+dpi*
 monitoring
 nat-tcp-v4
 maglev
