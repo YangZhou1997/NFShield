@@ -16,7 +16,7 @@ extern "C" {
 #define BOOL 3
 
 
-#define PRINT_INTERVAL (1024 * 1024 / (1024 * 16))
+#define PRINT_INTERVAL (1024 * 1024 / (1024 * 32))
 
 
 #ifdef CAVIUM_PLATFORM
