@@ -9,7 +9,7 @@
 #include "./utils/pkt-puller.h"
 #include "./utils/search_ac2.h"
 
-#define AC_DUMP
+// #define AC_DUMP
 
 int main(){
     
