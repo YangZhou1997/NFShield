@@ -205,7 +205,7 @@ int main(){
 			dleft_update(&ht_meta_cache, flow, dropped);
 		}
         
-        if(pkt_cnt % (1024 * 1024 / 64) == 0) {
+        if(pkt_cnt % PRINT_INTERVAL == 0) {
             printf("%s packets processed: %u\n", "acl-fw", pkt_cnt);
         }
         // if(pkt_cnt == 1024 * 1024) {

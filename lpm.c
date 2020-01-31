@@ -40,7 +40,7 @@ int main(){
         uint16_t gate = lpm_lookup(iplookup, srcip);
         gate_count[gate] ++;
         pkt_cnt ++;
-        if(pkt_cnt % (1024 * 1024 / 64) == 0) {
+        if(pkt_cnt % PRINT_INTERVAL == 0) {
             printf("%s packets processed: %u\n", "lpm", pkt_cnt);
         }
     }

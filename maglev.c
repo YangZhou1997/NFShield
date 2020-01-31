@@ -40,7 +40,7 @@ int main(){
         set_dst_ip(pkt_ptr, lookup_value);
 
         pkt_cnt ++;
-        if(pkt_cnt % (1024 * 1024 / 64) == 0) {
+        if(pkt_cnt % PRINT_INTERVAL == 0) {
             printf("%s packets processed: %u\n", "maglev", pkt_cnt);
         }
     }    

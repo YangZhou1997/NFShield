@@ -11,9 +11,9 @@ CFLAGS := -g -O3 $(ARM_FLAGS) -lm
 
 CPPFLAGS := $(CFLAGS)
 
-TEST_PROGS := lpm acl-fw maglev monitoring nat-tcp-v4 dpi2 dpi3
+TEST_PROGS := lpm acl-fw maglev monitoring nat-tcp-v4 dpi2 dpi dpi4
 
-TEST_PROGS_CPP := dpi
+TEST_PROGS_CPP := dpi3
 
 # ==== Rules ==================================================================
 
@@ -22,10 +22,10 @@ TEST_PROGS_CPP := dpi
 default: $(TEST_PROGS) $(TEST_PROGS_CPP)
 
 clean:
-	$(RM) $(TEST_PROGS) 
+	$(RM) $(TEST_PROGS) $(TEST_PROGS_CPP)
 
-$(TEST_PROGS): $(TEST_PROGS).c Makefile
+$(TEST_PROGS): $(TEST_PROGS).c Makefile utils/*.h utils/*.hpp
 	$(CC) -static -o $@ $@.c $(CFLAGS)
 
-$(TEST_PROGS_CPP): $(TEST_PROGS_CPP).cpp Makefile
+$(TEST_PROGS_CPP): $(TEST_PROGS_CPP).cpp Makefile utils/*.h utils/*.hpp
 	$(CCP) -static -o $@ $@.cpp $(CFLAGS) -std=c++11

@@ -1337,6 +1337,7 @@ Conv_Full_DFA_To_Banded(ACSM_STRUCT2 * acsm)
     cnt= last - first + 1;
 
     p = (acstate_t *)AC_MALLOC_DFA(sizeof(acstate_t)*(4+cnt), sizeof(acstate_t));
+    // printf("p_len = %d\n", 4+cnt);
 
     if(!p) return -1;
 
@@ -2903,6 +2904,8 @@ acsmSearchSparseDFA_Banded(ACSM_STRUCT2 * acsm, unsigned char *Tx, int n,
       ps     = NextState[state];
 
       sindex = xlatcase[ T[0] ];
+    // printf("sindex: %d\n", sindex);
+    //   printf("ps: %u %u % u %u\n", ps[0], ps[1], ps[2], ps[3]);
 
       /* test if this state has any matching patterns */
       if( ps[1] )
@@ -2910,9 +2913,11 @@ acsmSearchSparseDFA_Banded(ACSM_STRUCT2 * acsm, unsigned char *Tx, int n,
         mlist = MatchList[state];
         if (mlist)
         {
+            //   printf("mlist: %d\n", mlist->n);
             index = T - mlist->n - Tx;
             nfound++;
-            if (Match ((void *)(unsigned long)(mlist->iid), NULL, index, (void*)(Tx + index), NULL) > 0)
+            // if (Match ((void *)(unsigned long)(mlist->iid), NULL, index, (void*)(Tx + index), NULL) > 0)
+            if (Match ((void *)(unsigned long)(mlist->iid), NULL, index, data, NULL) > 0)
             {
                 *current_state = state;
                 return nfound;
@@ -2931,7 +2936,8 @@ acsmSearchSparseDFA_Banded(ACSM_STRUCT2 * acsm, unsigned char *Tx, int n,
   {
     index = T - mlist->n - Tx;
     nfound++;
-    if (Match ((void *)(unsigned long)(mlist->iid), NULL, index, (void*)(Tx + index), NULL) > 0)
+    // if (Match ((void *)(unsigned long)(mlist->iid), NULL, index, (void*)(Tx + index), NULL) > 0)
+    if (Match ((void *)(unsigned long)(mlist->iid), NULL, index, data, NULL) > 0)
     {
        *current_state = state;
        return nfound;
@@ -2941,7 +2947,90 @@ acsmSearchSparseDFA_Banded(ACSM_STRUCT2 * acsm, unsigned char *Tx, int n,
   return nfound;
 }
 
+static inline int acsmDumpSparseDFA_Banded(ACSM_STRUCT2 * acsm, FILE * f)
+{
+    acstate_t      ** NextState = acsm->acsmNextState;
+    ACSM_PATTERN2  ** MatchList = acsm->acsmMatchList;
+    ACSM_PATTERN2   * mlist;
+    acstate_t       * ps;
 
+    printf("acsmMaxStates: %d\n", acsm->acsmMaxStates);
+    fwrite(&acsm->acsmMaxStates, sizeof(int), 1, f);
+    printf("acsmNumStates: %d\n", acsm->acsmNumStates);
+    fwrite(&acsm->acsmNumStates, sizeof(int), 1, f);
+
+    unsigned int NextStateSize = acsm->acsmNumStates;
+    for(int i = 0; i < NextStateSize; i++){
+        ps = NextState[i];
+        fwrite(ps, sizeof(acstate_t), 4, f);
+        int cnt = ps[2];
+        fwrite(ps + 4, sizeof(acstate_t), cnt, f);
+        // printf("%u %u %u %u\n", ps[0], ps[1], ps[2], ps[3]);
+    }
+
+    unsigned int MatchListSize = acsm->acsmNumStates;
+    char flag = 0;
+    for(int i = 0; i < MatchListSize; i++){
+        mlist = MatchList[i];
+        if(mlist){
+            flag = 1;
+            fwrite(&flag, sizeof(char), 1, f);
+            fwrite(mlist, sizeof(ACSM_PATTERN2), 1, f);
+            // printf("%d\n", mlist->n);
+        }
+        else{
+            flag = 0;
+            fwrite(&flag, sizeof(char), 1, f);
+        }
+        // printf("%d", (int)flag);
+    }
+
+    fwrite(xlatcase, sizeof(unsigned char), 256, f);
+    fclose(f);
+}
+
+
+static inline int acsmRestoreSparseDFA_Banded(ACSM_STRUCT2 * acsm, FILE * f)
+{
+    ACSM_PATTERN2   * mlist;
+
+    fread(&acsm->acsmMaxStates, sizeof(int), 1, f);
+    printf("acsmMaxStates: %d\n", acsm->acsmMaxStates);
+    fread(&acsm->acsmNumStates, sizeof(int), 1, f);
+    printf("acsmNumStates: %d\n", acsm->acsmNumStates);
+
+    unsigned int NextStateSize = acsm->acsmNumStates;
+    acsm->acsmNextState = malloc(sizeof(acstate_t *) * NextStateSize);
+    acstate_t * ps = malloc(sizeof(acstate_t) * 4);
+    for(int i = 0; i < NextStateSize; i++){
+        fread(ps, sizeof(acstate_t), 4, f);
+        int cnt = ps[2];
+        acsm->acsmNextState[i] = malloc(sizeof(acstate_t) * (4 + cnt));
+        memcpy(acsm->acsmNextState[i], ps, sizeof(acstate_t) * 4);
+        fread(acsm->acsmNextState[i] + 4, sizeof(acstate_t), cnt, f);
+        // printf("restore: %u %u %u %u\n", ps[0], ps[1], ps[2], ps[3]);
+    }
+    free(ps);
+
+    unsigned int MatchListSize = acsm->acsmNumStates;
+    acsm->acsmMatchList = malloc(sizeof(ACSM_PATTERN2 *) * MatchListSize);
+    char flag = 0;
+    for(int i = 0; i < MatchListSize; i++){
+        fread(&flag, sizeof(char), 1, f);
+        // printf("%d", (int)flag);
+        if(flag){
+            acsm->acsmMatchList[i] = malloc(sizeof(ACSM_PATTERN2) * 1);
+            fread(acsm->acsmMatchList[i], sizeof(ACSM_PATTERN2), 1, f);
+            // printf("%d\n", acsm->acsmMatchList[i]->n);
+        }
+        else{
+            acsm->acsmMatchList[i] = NULL;
+        }
+    }
+    fread(xlatcase, sizeof(unsigned char), 256, f);
+
+    fclose(f);
+}
 
 /*
 *   Search Text or Binary Data for Pattern matches
@@ -3006,6 +3095,8 @@ acsmSearchSparseNFA(ACSM_STRUCT2 * acsm, unsigned char *Tx, int n,
 static int MatchFound (void * id, void *tree, int index, void *data, void *neg_list)
 {
     // printf("match id %x at index %d\n", (int)id, index);
+    unsigned int * cnt = (unsigned int *)data;
+    *cnt = *cnt + 1;
     return 0;
 }
 
@@ -3021,7 +3112,6 @@ acsmSearch2(ACSM_STRUCT2 * acsm, unsigned char *Tx, int n,
     switch( acsm->acsmFSA )
     {
         case FSA_DFA:
-
         if( acsm->acsmFormat == ACF_FULL )
         {
             return acsmSearchSparseDFA_Full( acsm, Tx, n, Match, data,
