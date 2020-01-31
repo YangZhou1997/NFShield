@@ -1,6 +1,9 @@
 lpm
 acl-fw
-dpi*
+dpi
+dpi2
+dpi3
+dpi4
 monitoring
 nat-tcp-v4
 maglev
