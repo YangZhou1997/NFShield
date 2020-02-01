@@ -61,9 +61,9 @@ int main(){
         match_total += matches.size();
 
         pkt_cnt ++;
-        if(pkt_cnt % PRINT_INTERVAL == 0) {
-            printf("dpi %u\n", pkt_cnt);
-        }
+        // if(pkt_cnt % PRINT_INTERVAL == 0) {
+        //     printf("dpi %u\n", pkt_cnt);
+        // }
     }    
 
     return 0;

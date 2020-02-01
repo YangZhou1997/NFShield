@@ -205,9 +205,9 @@ int main(){
 			dleft_update(&ht_meta_cache, flow, dropped);
 		}
         
-        if(pkt_cnt % PRINT_INTERVAL == 0) {
-            printf("acl-fw %u\n", pkt_cnt);
-        }
+        // if(pkt_cnt % PRINT_INTERVAL == 0) {
+        //     printf("acl-fw %u\n", pkt_cnt);
+        // }
         // if(pkt_cnt == 1024 * 1024) {
         //     dleft_dump(&ht_meta_cache, "/users/yangzhou/acl-fw-hashmap-dleft.raw");
         //     break;

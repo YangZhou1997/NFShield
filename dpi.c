@@ -66,10 +66,10 @@ int main(){
         acsmSearch2(acsm, (unsigned char *)(pkt_ptr + 54), pkt_len - 54, MatchFound, (void *)&match_total, &cur);
 
         pkt_cnt ++;
-        if(pkt_cnt % PRINT_INTERVAL == 0) {
-            printf("dpi %u\n", pkt_cnt);
-            // break;
-        }
+        // if(pkt_cnt % PRINT_INTERVAL == 0) {
+        //     printf("dpi %u\n", pkt_cnt);
+        //     // break;
+        // }
     }    
     printf("match_total: %u\n", match_total);
 #ifdef AC_DUMP

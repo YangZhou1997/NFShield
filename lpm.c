@@ -40,9 +40,9 @@ int main(){
         uint16_t gate = lpm_lookup(iplookup, srcip);
         gate_count[gate] ++;
         pkt_cnt ++;
-        if(pkt_cnt % PRINT_INTERVAL == 0) {
-            printf("lpm %u\n", pkt_cnt);
-        }
+        // if(pkt_cnt % PRINT_INTERVAL == 0) {
+        //     printf("lpm %u\n", pkt_cnt);
+        // }
     }
     zfree((const char *)iplookup);
 

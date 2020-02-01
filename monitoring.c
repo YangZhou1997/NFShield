@@ -34,9 +34,9 @@ int main(){
         dleft_add_value(&ht_meta, flow, 1);
 
         pkt_cnt ++;
-        if(pkt_cnt % PRINT_INTERVAL == 0) {
-            printf("monitoring %u\n", pkt_cnt);
-        }
+        // if(pkt_cnt % PRINT_INTERVAL == 0) {
+        //     printf("monitoring %u\n", pkt_cnt);
+        // }
     }    
     dleft_destroy(&ht_meta);
 

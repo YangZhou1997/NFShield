@@ -43,9 +43,9 @@ int main(){
         match_total += aho_findtext(&aho, pkt_ptr + 54, pkt_len - 54);
 
         pkt_cnt ++;
-        if(pkt_cnt % PRINT_INTERVAL == 0) {
-            printf("dpi %u\n", pkt_cnt);
-        }
+        // if(pkt_cnt % PRINT_INTERVAL == 0) {
+        //     printf("dpi %u\n", pkt_cnt);
+        // }
     }    
     aho_destroy(&aho);
 
