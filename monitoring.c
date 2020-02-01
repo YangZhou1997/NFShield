@@ -35,7 +35,7 @@ int main(){
 
         pkt_cnt ++;
         if(pkt_cnt % PRINT_INTERVAL == 0) {
-            printf("%s packets processed: %u\n", "monitoring", pkt_cnt);
+            printf("monitoring %u\n", pkt_cnt);
         }
     }    
     dleft_destroy(&ht_meta);

@@ -57,7 +57,7 @@ int main(){
 
         pkt_cnt ++;
         if(pkt_cnt % PRINT_INTERVAL == 0) {
-            // printf("%s packets processed: %u\n", "dpi", pkt_cnt);
+            printf("dpi %u\n", pkt_cnt);
             break;
         }
     }    

@@ -41,7 +41,7 @@ int main(){
         gate_count[gate] ++;
         pkt_cnt ++;
         if(pkt_cnt % PRINT_INTERVAL == 0) {
-            printf("%s packets processed: %u\n", "lpm", pkt_cnt);
+            printf("lpm %u\n", pkt_cnt);
         }
     }
     zfree((const char *)iplookup);

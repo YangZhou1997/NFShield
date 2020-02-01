@@ -41,7 +41,7 @@ int main(){
 
         pkt_cnt ++;
         if(pkt_cnt % PRINT_INTERVAL == 0) {
-            printf("%s packets processed: %u\n", "maglev", pkt_cnt);
+            printf("maglev %u\n", pkt_cnt);
         }
     }    
     maglev_destory(&mag_meta);
