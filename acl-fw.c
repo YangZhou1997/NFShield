@@ -154,7 +154,10 @@ int main(){
     uint32_t pkt_cnt = 0;
     uint32_t pkt_count_match = 0;
     
+// #define FW_DUMP
+#ifndef FW_DUMP
     recover_hashmap();
+#endif
 
     while(1){
         pkt_t *raw_pkt = next_pkt();
@@ -204,14 +207,16 @@ int main(){
 		    }
 			dleft_update(&ht_meta_cache, flow, dropped);
 		}
-        
-        // if(pkt_cnt % PRINT_INTERVAL == 0) {
-        //     printf("acl-fw %u\n", pkt_cnt);
-        // }
-        // if(pkt_cnt == 1024 * 1024) {
-        //     dleft_dump(&ht_meta_cache, "/users/yangzhou/acl-fw-hashmap-dleft.raw");
-        //     break;
-        // }
+
+#ifdef FW_DUMP    
+        if(pkt_cnt % PRINT_INTERVAL == 0) {
+            printf("acl-fw %u\n", pkt_cnt);
+        }
+        if(pkt_cnt == 1024 * 1024) {
+            dleft_dump(&ht_meta_cache, "/users/yangzhou/acl-fw-hashmap-dleft.raw");
+            break;
+        }
+#endif
         pkt_cnt ++;        
     }
 

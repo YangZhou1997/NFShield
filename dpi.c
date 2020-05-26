@@ -22,6 +22,7 @@ int main(){
     
     uint32_t match_total = 0;
 
+// #define AC_DUMP
 #ifdef AC_DUMP
     // You must use absolute address, otherwise gem5 will show "Page table fault when accessing virtual address 0"
     FILE * file_rule = fopen("/users/yangzhou/NF-GEM5/sentense.rules", "r");
