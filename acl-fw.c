@@ -108,7 +108,7 @@ static inline bool matches(five_tuple_t flow, acl_t acl)
 #define NTOHS(x) (((x & 0xF) << 4) | ((x >> 4) & 0xF))
 
 void recover_hashmap(){
-    FILE *file = fopen("/users/yangzhou/acl-fw-hashmap-dleft.raw", "r");
+    FILE *file = fopen("../NF-DATA/acl-fw-hashmap-dleft.raw", "r");
     if (file == NULL){
         printf("recovery file open error");
         exit(0);
@@ -149,7 +149,7 @@ int main(){
 
     srand((unsigned)time(NULL));
 
-    load_pkt("/users/yangzhou/ictf2010_100kflow.dat");
+    load_pkt("../NF-DATA/ictf2010_100kflow.dat");
     
     uint32_t pkt_cnt = 0;
     uint32_t pkt_count_match = 0;
@@ -208,12 +208,12 @@ int main(){
 			dleft_update(&ht_meta_cache, flow, dropped);
 		}
 
-#ifdef FW_DUMP    
         if(pkt_cnt % PRINT_INTERVAL == 0) {
             printf("acl-fw %u\n", pkt_cnt);
         }
+#ifdef FW_DUMP    
         if(pkt_cnt == 1024 * 1024) {
-            dleft_dump(&ht_meta_cache, "/users/yangzhou/acl-fw-hashmap-dleft.raw");
+            dleft_dump(&ht_meta_cache, "../NF-DATA/acl-fw-hashmap-dleft.raw");
             break;
         }
 #endif

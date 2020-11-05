@@ -29,7 +29,7 @@ int main(){
     }
     lpm_construct_table(iplookup);
     
-    load_pkt("/users/yangzhou/ictf2010_100kflow.dat");
+    load_pkt("../NF-DATA/ictf2010_100kflow.dat");
     uint32_t pkt_cnt = 0;
     while(1){
         pkt_t *raw_pkt = next_pkt();
@@ -40,9 +40,9 @@ int main(){
         uint16_t gate = lpm_lookup(iplookup, srcip);
         gate_count[gate] ++;
         pkt_cnt ++;
-        // if(pkt_cnt % PRINT_INTERVAL == 0) {
-        //     printf("lpm %u\n", pkt_cnt);
-        // }
+         if(pkt_cnt % PRINT_INTERVAL == 0) {
+             printf("lpm %u\n", pkt_cnt);
+         }
     }
     zfree((const char *)iplookup);
 

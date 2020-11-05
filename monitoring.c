@@ -21,7 +21,7 @@ int main(){
 
     srand((unsigned)time(NULL));
    
-    load_pkt("/users/yangzhou/ictf2010_100kflow.dat");
+    load_pkt("../NF-DATA/ictf2010_100kflow.dat");
     uint32_t pkt_cnt = 0;
     while(1){
         pkt_t *raw_pkt = next_pkt();
@@ -34,9 +34,9 @@ int main(){
         dleft_add_value(&ht_meta, flow, 1);
 
         pkt_cnt ++;
-        // if(pkt_cnt % PRINT_INTERVAL == 0) {
-        //     printf("monitoring %u\n", pkt_cnt);
-        // }
+         if(pkt_cnt % PRINT_INTERVAL == 0) {
+             printf("monitoring %u\n", pkt_cnt);
+         }
     }    
     dleft_destroy(&ht_meta);
 
