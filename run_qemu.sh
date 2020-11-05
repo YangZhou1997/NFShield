@@ -1,5 +1,6 @@
 # !/bin/bash
 
+source ./riscv_build_env.sh
 # cp -r ~/NF-GEM5/ ~/riscv-buildroot/output/target/root/
 rsync -rv --exclude=.git ~/NF-GEM5/ ~/riscv-buildroot/output/target/root/NF-GEM5
 cd ~/riscv-buildroot/
