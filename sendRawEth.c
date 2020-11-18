@@ -24,6 +24,7 @@
 
 #define DEFAULT_IF	"eth0"
 #define BUF_SIZ		1024
+#define ETH_ALEN	6		/* Octets in one ethernet addr	 */
 
 int main(int argc, char *argv[])
 {
