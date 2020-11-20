@@ -13,7 +13,7 @@ CFLAGS := -g -O3 $(ARM_FLAGS) -lm -lpthread
 
 CPPFLAGS := $(CFLAGS)
 
-TEST_PROGS := lpm acl-fw maglev monitoring nat-tcp-v4 dpi pktgen recvRawEth sendRawEth
+TEST_PROGS := lpm acl-fw maglev monitoring nat-tcp-v4 dpi pktgen recvRawEth sendRawEth nf-top
 
 # ==== Rules ==================================================================
 

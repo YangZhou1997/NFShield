@@ -45,7 +45,8 @@ int main(int argc, char *argv[])
 		strcpy(ifName, DEFAULT_IF);
 
 	/* Open RAW socket to send on */
-	if ((sockfd = socket(AF_PACKET, SOCK_RAW, IPPROTO_RAW)) == -1) {
+	// if ((sockfd = socket(AF_PACKET, SOCK_RAW, IPPROTO_RAW)) == -1) {
+	if ((sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_IP))) == -1) {
 	    perror("socket");
 	}
 
@@ -97,9 +98,33 @@ int main(int argc, char *argv[])
 	socket_address.sll_addr[4] = MY_DEST_MAC4;
 	socket_address.sll_addr[5] = MY_DEST_MAC5;
 
+
+	struct ifreq ifopts;	/* set promiscuous mode */
+	int sockopt;
+    strncpy(ifopts.ifr_name, ifName, IFNAMSIZ-1);
+	ioctl(sockfd, SIOCGIFFLAGS, &ifopts);
+	ifopts.ifr_flags |= IFF_PROMISC;
+	ioctl(sockfd, SIOCSIFFLAGS, &ifopts);
+	/* Allow the socket to be reused - incase connection is closed prematurely */
+	if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &sockopt, sizeof sockopt) == -1) {
+		perror("setsockopt");
+		close(sockfd);
+		exit(EXIT_FAILURE);
+	}
+	/* Bind to device */
+	if (setsockopt(sockfd, SOL_SOCKET, SO_BINDTODEVICE, ifName, IFNAMSIZ-1) == -1)	{
+		perror("SO_BINDTODEVICE");
+		close(sockfd);
+		exit(EXIT_FAILURE);
+	}
+
 	/* Send packet */
 	if (sendto(sockfd, sendbuf, tx_len, 0, (struct sockaddr*)&socket_address, sizeof(struct sockaddr_ll)) < 0)
 	    printf("Send failed\n");
 
+	uint8_t buf[BUF_SIZ];
+    int numbytes = recvfrom(sockfd, buf, BUF_SIZ, 0, NULL, NULL);
+	printf("listener: got packet %lu bytes\n", numbytes);
+    
 	return 0;
 }
