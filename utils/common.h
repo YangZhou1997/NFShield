@@ -16,8 +16,8 @@ extern "C" {
 #define BOOL 3
 
 
-// #define PRINT_INTERVAL (1024 * 1024)
-#define PRINT_INTERVAL (1)
+#define PRINT_INTERVAL (100 * 1024)
+// #define PRINT_INTERVAL (1)
 
 
 #ifdef CAVIUM_PLATFORM
