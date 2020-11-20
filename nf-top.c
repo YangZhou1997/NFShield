@@ -30,7 +30,7 @@ void *loop_func(void *arg){
 
     while(1){
         numbytes = recvfrom(sockfd, buf, BUF_SIZ, 0, NULL, NULL);
-        printf("[loop_func %d] receiving numbytes %d\n", nf_idx, numbytes);
+        // printf("[loop_func %d] receiving numbytes %d\n", nf_idx, numbytes);
         // calling nf processing function. 
         nfs[nf_idx](buf);
     

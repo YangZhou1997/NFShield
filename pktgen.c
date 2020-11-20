@@ -28,8 +28,8 @@ static volatile uint64_t received_pkts[4] = {0,0,0,0};
 static volatile uint8_t force_quit_send;
 static volatile uint8_t force_quit_recv;
 
-#define TEST_NPKTS (2*10*1024)
-#define WARMUP_NPKTS (1*10*1024)
+#define TEST_NPKTS (2*1024*1024)
+#define WARMUP_NPKTS (1*1024*1024)
 
 static int sockfd  = 0;
 static struct sockaddr_ll send_sockaddr;
@@ -129,7 +129,10 @@ void * recv_pkt_func(void *arg){
     uint8_t warmup_end = 0;
     uint64_t lost_pkt_during_cold_start;
 	while(!force_quit_recv){
-        numbytes = recvfrom(sockfd, buf, BUF_SIZ, 0, NULL, NULL);
+        numbytes = recvfrom(sockfd, buf, BUF_SIZ, MSG_DONTWAIT, NULL, NULL);
+        if(numbytes <= 0){
+            continue;
+        }
         // received nf_idx
         recv_nf_idx = (int)eh->d_addr.addr_bytes[5];
         // printf("[recv_pacekts %d] recv_nf_idx = %d, tcph->sent_seq = %x\n", nf_idx, recv_nf_idx, tcph->sent_seq);
@@ -150,7 +153,7 @@ void * recv_pkt_func(void *arg){
                 lost_pkt_during_cold_start = pkt_idx - received_pkts[nf_idx]; 
                 printf("[recv_pacekts %d] warm up ends, lost_pkt_during_cold_start = %llu\n", nf_idx, lost_pkt_during_cold_start);
         		printf("[recv_pacekts %d] pkt_idx %u, received_pkts[nf_idx] %llu\n", nf_idx, pkt_idx, received_pkts[nf_idx]);
-        		fflush(stdout);
+        		// fflush(stdout);
             }
             if(received_pkts[nf_idx] % PRINT_INTERVAL == 0){
                 printf("[recv_pacekts %d] number of pkts received: %u\n", nf_idx, received_pkts[nf_idx]);
