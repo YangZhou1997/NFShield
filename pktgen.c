@@ -132,7 +132,7 @@ void * recv_pkt_func(void *arg){
         numbytes = recvfrom(sockfd, buf, BUF_SIZ, 0, NULL, NULL);
         // received nf_idx
         recv_nf_idx = (int)eh->d_addr.addr_bytes[5];
-        printf("[recv_pacekts %d] recv_nf_idx = %d, tcph->sent_seq = %x\n", nf_idx, recv_nf_idx, tcph->sent_seq);
+        // printf("[recv_pacekts %d] recv_nf_idx = %d, tcph->sent_seq = %x\n", nf_idx, recv_nf_idx, tcph->sent_seq);
 
         if(tcph->sent_seq != 0xdeadbeef){
             __atomic_fetch_add(&invalid_pkts, 1, __ATOMIC_SEQ_CST);
