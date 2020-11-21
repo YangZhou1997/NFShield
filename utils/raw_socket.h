@@ -14,6 +14,7 @@
 #include <signal.h>
 #include <sys/time.h> 
 #include <unistd.h>
+#include "pkt-header.h"
 
 #define DEFAULT_IF	"eth0"
 #define ETHER_TYPE	0x0800
@@ -28,6 +29,7 @@
 #define MY_DEST_MAC5	0x00
 
 #define BUF_SIZ		1536
+#define MAX_BATCH_SIZE 32
 
 void init_socket(int *sockfd_p, struct sockaddr_ll* send_sockaddr, struct ifreq *if_mac_p){
     // setup socket for receiving packets.
@@ -120,6 +122,29 @@ void init_socket(int *sockfd_p, struct sockaddr_ll* send_sockaddr, struct ifreq 
     *if_mac_p = if_mac;
 
     return;
+}
+
+int recvfrom_batch(int sockfd, int buff_size, pkt_t** pkt_buf){
+    int cnt = 0;
+    int numbytes = 0;
+    while(cnt < MAX_BATCH_SIZE){
+        numbytes = recvfrom(sockfd, pkt_buf[cnt]->content, buff_size, MSG_DONTWAIT, NULL, NULL);
+        if(numbytes <= 0){
+            return cnt;
+        }
+        pkt_buf[cnt]->len = numbytes;
+        cnt ++;
+    }
+    return cnt;
+}
+
+int sendto_batch(int sockfd, int batch_size, pkt_t** pkt_buf, struct sockaddr_ll* send_sockaddr){
+    int cnt = 0;
+    while(cnt < batch_size){
+    	while (sendto(sockfd, pkt_buf[cnt]->content, pkt_buf[cnt]->len, 0, (struct sockaddr*)send_sockaddr, sizeof(struct sockaddr_ll)) < 0){}
+        cnt ++;
+    }
+    return cnt;
 }
 
 #endif

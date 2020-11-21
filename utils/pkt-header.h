@@ -42,4 +42,10 @@ struct tcp_hdr {
 	uint16_t tcp_urp;   /**< TCP urgent pointer, if any. */
 } __attribute__((__packed__));
 
+typedef struct _pkt
+{
+    uint16_t len;
+    uint8_t * content;
+}pkt_t;
+
 #endif // __PKT_HEADER__

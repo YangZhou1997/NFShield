@@ -16,12 +16,6 @@ extern "C" {
 
 #define PKT_NUM (100 * 1024)
 
-typedef struct _pkt
-{
-    uint16_t len;
-    uint8_t * content;
-}pkt_t;
-
 pkt_t pkts[PKT_NUM];
 
 void load_pkt(char *filename){
