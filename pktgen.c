@@ -28,8 +28,8 @@ static volatile uint64_t received_pkts[4] = {0,0,0,0};
 static volatile uint8_t force_quit_send;
 static volatile uint8_t force_quit_recv;
 
-#define TEST_NPKTS (2*1024*1024)
-#define WARMUP_NPKTS (1*1024*1024)
+#define WARMUP_NPKTS (1*50*1024)
+#define TEST_NPKTS (2*50*1024)
 
 static int sockfd  = 0;
 static struct sockaddr_ll send_sockaddr;
@@ -58,12 +58,14 @@ void *send_pkt_func(void *arg) {
     	/* Ethertype field */
     	eh->ether_type = htons(ETH_P_IP);
     }
+    pkt_t* pkt_buf[MAX_BATCH_SIZE];
 
     struct timeval start, end; 
     uint64_t burst_size;
     struct tcp_hdr *tcph;
     uint8_t warmup_end = 0;
     gettimeofday(&start, NULL);
+
     while(sent_pkts[nf_idx] < TEST_NPKTS + WARMUP_NPKTS){
         while(sent_pkts[nf_idx] >= received_pkts[nf_idx] && (unack_pkts[nf_idx] = sent_pkts[nf_idx] - received_pkts[nf_idx]) >= MAX_UNACK_WINDOW){
             if(force_quit_send)
@@ -73,35 +75,35 @@ void *send_pkt_func(void *arg) {
         burst_size = MIN(burst_size, TEST_NPKTS + WARMUP_NPKTS - sent_pkts[nf_idx]);
 
         for(int i = 0; i < burst_size; i++){
-            pkt_t *raw_pkt = next_pkt();
-        	tcph = (struct tcp_hdr *) (raw_pkt->content + sizeof(struct ipv4_hdr) + sizeof(struct ether_hdr));
-            tcph->sent_seq = 0xdeadbeef;
-            tcph->recv_ack = sent_pkts[nf_idx] + i;
-            eh = (struct ether_hdr*)raw_pkt->content;
+            pkt_buf[i] = next_pkt();
+        	
+            eh = (struct ether_hdr*)pkt_buf[i]->content;
             eh->d_addr.addr_bytes[5] = (uint8_t)nf_idx;
 
-        	/* Send packet */
-        	if (sendto(sockfd, raw_pkt->content, raw_pkt->len, 0, (struct sockaddr*)&send_sockaddr, sizeof(struct sockaddr_ll)) < 0){
-        	    printf("[send_pacekts %d] send failed\n", nf_idx);
-            }
-            else{
-                // sent_pkts[nf_idx] ++;
-                __atomic_fetch_add(&sent_pkts[nf_idx], 1, __ATOMIC_SEQ_CST);
-            }
- 
-            if(sent_pkts[nf_idx] == WARMUP_NPKTS){
-                gettimeofday(&start, NULL);
-                warmup_end = 1; 
-            }
-            if(sent_pkts[nf_idx] % PRINT_INTERVAL == 0){
-                printf("[send_pacekts %d] number of pkts sent: %u\n", nf_idx, sent_pkts[nf_idx]);
-            }
+            tcph = (struct tcp_hdr *) (pkt_buf[i]->content + sizeof(struct ipv4_hdr) + sizeof(struct ether_hdr));
+            tcph->sent_seq = 0xdeadbeef;
+            tcph->recv_ack = sent_pkts[nf_idx] + i;
         }
+
+        sendto_batch(sockfd, burst_size, pkt_buf, &send_sockaddr);
+
+        // __atomic_fetch_add(&sent_pkts[nf_idx], burst_size, __ATOMIC_SEQ_CST);
+        sent_pkts[nf_idx] += burst_size;
+
+        if(!warmup_end && sent_pkts[nf_idx] >= WARMUP_NPKTS){
+            gettimeofday(&start, NULL);
+            warmup_end = 1; 
+        }
+        if((sent_pkts[nf_idx] / MAX_BATCH_SIZE) % (PRINT_INTERVAL / MAX_BATCH_SIZE) == 0){
+            printf("[send_pacekts %d] number of pkts sent: %u\n", nf_idx, sent_pkts[nf_idx]);
+        }
+
        if(force_quit_send)
 			break;
     }
     gettimeofday(&end, NULL); 
     if(warmup_end){
+        // __atomic_fetch_add(&sent_pkts[nf_idx], -WARMUP_NPKTS, __ATOMIC_SEQ_CST);
         sent_pkts[nf_idx] -= WARMUP_NPKTS;
     }
     double time_taken; 
@@ -114,55 +116,76 @@ void *send_pkt_func(void *arg) {
     // ending all packet receiving. 
     force_quit_recv = 1;
 
-    return NULL;
+    // wait for force_quit_send taking effect
+    sleep(1);
+    exit(0);
+    // any of the following two will crash. ?? why
+    // pthread_exit(arg);
+    // return NULL;
+    // pthread_exit(NULL);
 }
 
 static volatile uint64_t invalid_pkts = 0;
 void * recv_pkt_func(void *arg){
     // which nf's traffic this thread sends
     int nf_idx = *(int*)arg;
-    int recv_nf_idx = 0, numbytes = 0;
-	uint8_t buf[BUF_SIZ];
-	struct ether_hdr *eh = (struct ether_hdr *) buf;
-	struct tcp_hdr *tcph = (struct tcp_hdr *) (buf + sizeof(struct ipv4_hdr) + sizeof(struct ether_hdr));
+    int recv_nf_idx = 0, numpkts = 0;
+    struct ether_hdr *eh;
+    struct tcp_hdr *tcph;
 
+    pkt_t* pkt_buf[MAX_BATCH_SIZE];
+    for(int i = 0; i < MAX_BATCH_SIZE; i++){
+        pkt_buf[i] = malloc(sizeof(pkt_t));
+        pkt_buf[i]->content = malloc(BUF_SIZ);
+    }
     uint8_t warmup_end = 0;
     uint64_t lost_pkt_during_cold_start;
+    uint64_t curr_invalid_pkts = 0;
 	while(!force_quit_recv){
-        numbytes = recvfrom(sockfd, buf, BUF_SIZ, MSG_DONTWAIT, NULL, NULL);
-        if(numbytes <= 0){
+        numpkts = recvfrom_batch(sockfd, BUF_SIZ, pkt_buf);
+        if(numpkts <= 0){
             continue;
         }
-        // received nf_idx
-        recv_nf_idx = (int)eh->d_addr.addr_bytes[5];
-        // printf("[recv_pacekts %d] recv_nf_idx = %d, tcph->sent_seq = %x\n", nf_idx, recv_nf_idx, tcph->sent_seq);
+        curr_invalid_pkts = 0;
+        for(int i = 0; i < numpkts; i++){
+        	eh = (struct ether_hdr *) pkt_buf[i]->content;
+        	tcph = (struct tcp_hdr *) (pkt_buf[i]->content + sizeof(struct ipv4_hdr) + sizeof(struct ether_hdr));
+            recv_nf_idx = (int)eh->d_addr.addr_bytes[5];
+            // printf("[recv_pacekts %d] recv_nf_idx = %d, tcph->sent_seq = %x\n", nf_idx, recv_nf_idx, tcph->sent_seq);
 
-        if(tcph->sent_seq != 0xdeadbeef){
-            __atomic_fetch_add(&invalid_pkts, 1, __ATOMIC_SEQ_CST);
-            continue;
-        }
-        else{
-            __atomic_fetch_add(&received_pkts[recv_nf_idx], 1, __ATOMIC_SEQ_CST);
-        }
-
-        if(nf_idx == recv_nf_idx){
-            uint32_t pkt_idx = tcph->recv_ack;
-            if(!warmup_end && pkt_idx >= WARMUP_NPKTS - 1)
-            {
-        		warmup_end = 1;
-                lost_pkt_during_cold_start = pkt_idx - received_pkts[nf_idx]; 
-                printf("[recv_pacekts %d] warm up ends, lost_pkt_during_cold_start = %llu\n", nf_idx, lost_pkt_during_cold_start);
-        		printf("[recv_pacekts %d] pkt_idx %u, received_pkts[nf_idx] %llu\n", nf_idx, pkt_idx, received_pkts[nf_idx]);
-        		// fflush(stdout);
+            if(tcph->sent_seq != 0xdeadbeef){
+                curr_invalid_pkts ++;
+                __atomic_fetch_add(&invalid_pkts, 1, __ATOMIC_SEQ_CST);
+                continue;
             }
-            if(received_pkts[nf_idx] % PRINT_INTERVAL == 0){
-                printf("[recv_pacekts %d] number of pkts received: %u\n", nf_idx, received_pkts[nf_idx]);
+            if(recv_nf_idx < 4)
+                __atomic_fetch_add(&received_pkts[recv_nf_idx], 1, __ATOMIC_SEQ_CST);
+
+            if(nf_idx == recv_nf_idx){
+                uint32_t pkt_idx = tcph->recv_ack;
+                uint64_t curr_received_pkts = received_pkts[nf_idx] + (i + 1 - curr_invalid_pkts);
+                if(!warmup_end && pkt_idx >= WARMUP_NPKTS - 1)
+                {
+            		warmup_end = 1;
+                    lost_pkt_during_cold_start = pkt_idx - curr_received_pkts; 
+                    printf("[recv_pacekts %d] warm up ends, lost_pkt_during_cold_start = %llu\n", nf_idx, lost_pkt_during_cold_start);
+            		printf("[recv_pacekts %d] pkt_idx %u, received_pkts[nf_idx] %llu\n", nf_idx, pkt_idx, curr_received_pkts);
+                }
+                if(curr_received_pkts % PRINT_INTERVAL == 0){
+                    printf("[recv_pacekts %d] number of pkts received: %llu\n", nf_idx, curr_received_pkts);
+                }
             }
         }
     }
-    
-	close(sockfd);
-    return NULL;
+
+    for(int i = 0; i < MAX_BATCH_SIZE; i++){
+        free(pkt_buf[i]->content);
+        free(pkt_buf[i]);
+    }
+    sleep(1);
+    exit(0);
+    // pthread_exit(NULL);
+	// return NULL;
 }
 
 
@@ -214,11 +237,14 @@ int main(int argc, char *argv[]){
         pthread_create(&threads[i], NULL, send_pkt_func, (void*)(nf_idx+i/2));
         pthread_create(&threads[i+1], NULL, recv_pkt_func, (void*)(nf_idx+i/2));
     }
+    
     for(int i = 0; i < num_nfs*2; i += 2){
         pthread_join(threads[i], NULL);
         pthread_join(threads[i+1], NULL);
     }
     
+	close(sockfd);
+
     return 0;
 }
     
