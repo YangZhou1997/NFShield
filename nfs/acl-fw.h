@@ -151,12 +151,15 @@ void acl_fw_init(){
     fill_rules();
 
     srand((unsigned)time(NULL));
-}
-void acl_fw(uint8_t *pkt_pkt){
-    // #define FW_DUMP
+
+// #define FW_DUMP
 #ifndef FW_DUMP
     recover_hashmap();
 #endif
+
+}
+
+void acl_fw(uint8_t *pkt_ptr){
 
     swap_mac_addr(pkt_ptr);
     

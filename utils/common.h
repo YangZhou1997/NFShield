@@ -16,7 +16,7 @@ extern "C" {
 #define BOOL 3
 
 
-#define PRINT_INTERVAL (100 * 1024)
+#define PRINT_INTERVAL (10 * 1024)
 // #define PRINT_INTERVAL (1)
 
 
