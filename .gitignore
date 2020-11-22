@@ -15,3 +15,5 @@ synth_zipf_seq
 synth_zipf_packets
 extract_packets
 extract_flow
+ictf2010_2mpacket.dat
+ictf2010_2mpacket_zipf.dat
