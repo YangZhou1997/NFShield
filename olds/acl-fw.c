@@ -1,19 +1,24 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define VALUE_TYPE BOOL // hashset, bool
-
-#include "./utils/common.h"
-#include "./utils/dleft-hash.h"
-#include "./utils/pkt-ops.h"
-#include "./utils/pkt-puller.h"
+#include "../utils/common.h"
+// #define VALUE_TYPE BOOL // hashset, bool
+#define TYPE bool
+#define TYPE_STR BOOL
+#define TYPED_NAME(x) bool_##x
+#include "../utils/dleft-hash.h"
+#undef TYPE
+#undef TYPE_STR
+#undef TYPED_NAME
+#include "../utils/pkt-ops.h"
+#include "../utils/pkt-puller.h"
 
 // int(200000 / 0.875)
 // make sure we use the same about of memory as netbricks.
-#define HT_SIZE 228571
+#define HT_SIZE_ACL_FW 228571
 
-static dleft_meta_t ht_meta;
-static dleft_meta_t ht_meta_cache;
+static bool_dleft_meta_t ht_meta;
+static bool_dleft_meta_t ht_meta_cache;
 
 #define ACL_RULE_NUM 1596
 // #define ACL_RULE_NUM_USED 3192
@@ -93,7 +98,7 @@ static inline bool matches(five_tuple_t flow, acl_t acl)
             if((acl.valid_flag >> 4) & 0x1)
             {
                 five_tuple_t rev_flow = REVERSE(flow);
-                return (dleft_lookup(&ht_meta, flow) != NULL || dleft_lookup(&ht_meta, rev_flow) != NULL) == acl.established;
+                return (bool_dleft_lookup(&ht_meta, flow) != NULL || bool_dleft_lookup(&ht_meta, rev_flow) != NULL) == acl.established;
             }
             else
             {
@@ -108,7 +113,7 @@ static inline bool matches(five_tuple_t flow, acl_t acl)
 #define NTOHS(x) (((x & 0xF) << 4) | ((x >> 4) & 0xF))
 
 void recover_hashmap(){
-    FILE *file = fopen("./data/acl-fw-hashmap-dleft.raw", "r");
+    FILE *file = fopen("../data/acl-fw-hashmap-dleft.raw", "r");
     if (file == NULL){
         printf("recovery file open error");
         exit(0);
@@ -129,18 +134,18 @@ void recover_hashmap(){
         //     printf("recover: %x %x %hu %hu %hu\n", flow.srcip, flow.dstip, flow.srcport, flow.dstport, flow.proto);
         // }
         cnt++;
-        dleft_update(&ht_meta_cache, flow, val == 1);
+        bool_dleft_update(&ht_meta_cache, flow, val == 1);
     }
     printf("recover down\n");
 }
 
 int main(){
-    if(-1 == dleft_init("acl-fw", HT_SIZE, &ht_meta))
+    if(-1 == bool_dleft_init("acl-fw", HT_SIZE_ACL_FW, &ht_meta))
     {
         printf("bootmemory allocation error\n");
         return 0;
     }
-    if(-1 == dleft_init("acl-fw-meta", HT_SIZE, &ht_meta_cache))
+    if(-1 == bool_dleft_init("acl-fw-meta", HT_SIZE_ACL_FW, &ht_meta_cache))
     {
         printf("bootmemory allocation error\n");
         return 0;
@@ -149,7 +154,7 @@ int main(){
 
     srand((unsigned)time(NULL));
 
-    load_pkt("./data/ictf2010_100kflow.dat");
+    load_pkt("../data/ictf2010_100kflow.dat");
     
     uint32_t pkt_cnt = 0;
     uint32_t pkt_count_match = 0;
@@ -179,7 +184,7 @@ int main(){
 
 		bool flag = false;
 		bool dropped = false;
-		bool *res_ptr = dleft_lookup(&ht_meta_cache, flow);
+		bool *res_ptr = bool_dleft_lookup(&ht_meta_cache, flow);
 		if(res_ptr != NULL)
 		{
             // printf("hit!\n");
@@ -193,7 +198,7 @@ int main(){
 	            {
 	                if(!acls[i].drop) // record the dropped packet info
 	                {
-	                    dleft_update(&ht_meta, flow, true);
+	                    bool_dleft_update(&ht_meta, flow, true);
 	                }
 	                flag = true;
 	                dropped = false;
@@ -205,7 +210,7 @@ int main(){
 		    {
 		        dropped = true;
 		    }
-			dleft_update(&ht_meta_cache, flow, dropped);
+			bool_dleft_update(&ht_meta_cache, flow, dropped);
 		}
 
         if(pkt_cnt % PRINT_INTERVAL == 0) {
@@ -213,14 +218,14 @@ int main(){
         }
 #ifdef FW_DUMP    
         if(pkt_cnt == 1024 * 1024) {
-            dleft_dump(&ht_meta_cache, "./data/acl-fw-hashmap-dleft.raw");
+            bool_dleft_dump(&ht_meta_cache, "../data/acl-fw-hashmap-dleft.raw");
             break;
         }
 #endif
         pkt_cnt ++;        
     }
 
-    dleft_destroy(&ht_meta);
-    dleft_destroy(&ht_meta_cache);
+    bool_dleft_destroy(&ht_meta);
+    bool_dleft_destroy(&ht_meta_cache);
     return 0;
 }

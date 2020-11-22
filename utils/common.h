@@ -7,14 +7,12 @@ extern "C" {
 /* *INDENT-ON* */
 #endif
 
-// enum value_type{U32, U16, TUPLE, BOOL};
 #include <stdint.h>
 
 #define U32 0
 #define U16 1
 #define TUPLE 2
 #define BOOL 3
-
 
 #define PRINT_INTERVAL (10 * 1024)
 // #define PRINT_INTERVAL (1)

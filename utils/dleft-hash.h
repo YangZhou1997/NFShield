@@ -1,6 +1,3 @@
-#ifndef __DLEFT_HASH_H__
-#define __DLEFT_HASH_H__
-
 #ifdef	__cplusplus
 /* *INDENT-OFF* */
 extern "C" {
@@ -15,38 +12,31 @@ extern "C" {
 #include "fnv64.h"
 #include "common.h" 
 
-#define BUCKET_SIZE 32
-// the number of bucket_entry in each bucket_list.
-#define BUCKET_MASK ((CAST_PTR(uint64_t, 1)<<BUCKET_SIZE) - 1)  // (1<<BZUCKET_SIZE) - 1
-// used for operating the occupy_set
-#define DLEFT 2
-// the number of mapped bucket_list per key.
-
-#ifdef VALUE_TYPE
-    #if VALUE_TYPE == U32
-        typedef uint32_t value_t;
-    #elif VALUE_TYPE == U16
-        typedef uint16_t value_t;
-    #elif VALUE_TYPE == TUPLE
-        typedef five_tuple_t value_t;
-    #elif VALUE_TYPE == BOOL
-        typedef bool value_t;
-    #endif
-#else
-        typedef uint32_t value_t;
+#ifndef TYPE
+#define TYPE uint32_t
+#define TYPE_STR U32
+#define TYPED_NAME(x) u32_##x
 #endif
 
+#ifndef BUCKE_SIZE
+// the number of bucket_entry in each bucket_list.
+#define BUCKET_SIZE 32
+// used for operating the occupy_set
+#define BUCKET_MASK ((CAST_PTR(uint64_t, 1)<<BUCKET_SIZE) - 1)  // (1<<BZUCKET_SIZE) - 1
+// the number of mapped bucket_list per key.
+#define DLEFT 2
+#endif
 
 typedef struct
 {
 	five_tuple_t key;
-	value_t value;
-}bucket_entry_t;
+	TYPE value;
+}TYPED_NAME(bucket_entry_t);
 
 typedef struct
 {
-	bucket_entry_t entry[BUCKET_SIZE];
-}bucket_list_t;
+	TYPED_NAME(bucket_entry_t) entry[BUCKET_SIZE];
+}TYPED_NAME(bucket_list_t);
 
 typedef struct
 {
@@ -56,22 +46,22 @@ typedef struct
     // the number of bucket_list; should be less than 2^24, otherwise need to change aging table allocation
     uint32_t table_size;
 	uint32_t *occupy_set; // length: table_size
-	bucket_list_t *dleft; // length: table_size
-}dleft_meta_t;
+	TYPED_NAME(bucket_list_t) *dleft; // length: table_size
+}TYPED_NAME(dleft_meta_t);
 
-int dleft_init(char *table_name, uint32_t entry_num, dleft_meta_t *ht_ptr)
+int TYPED_NAME(dleft_init)(char *table_name, uint32_t entry_num, TYPED_NAME(dleft_meta_t) *ht_ptr)
 {   
     void * block_ptr;
     uint64_t whole_size, table_size; // qvq, whole_size cannot be uint32_t, since large memory will overflow it.
 
     table_size = entry_num / BUCKET_SIZE + 1;
-    whole_size = table_size * sizeof(uint32_t) + table_size * sizeof(bucket_list_t);
+    whole_size = table_size * sizeof(uint32_t) + table_size * sizeof(TYPED_NAME(bucket_list_t));
 
 #ifdef CAVIUM_PLATFORM
-    cvmx_dprintf("value_t size: %luB\n", sizeof(value_t));
+    cvmx_dprintf("TYPE size: %luB\n", sizeof(TYPE));
     cvmx_dprintf("memory size: %lfMB\n", whole_size * 1.0 / 1024 / 1024);
 #else
-    printf("value_t size: %luB\n", sizeof(value_t));
+    printf("TYPE size: %luB\n", sizeof(TYPE));
     printf("memory size: %lfMB\n", whole_size * 1.0 / 1024 / 1024);
 #endif
 
@@ -83,12 +73,12 @@ int dleft_init(char *table_name, uint32_t entry_num, dleft_meta_t *ht_ptr)
     ht_ptr->block_ptr = CAST_PTR(uint64_t, block_ptr);
     ht_ptr->table_size = table_size;
     ht_ptr->occupy_set = CAST_PTR(uint32_t *, block_ptr);
-    ht_ptr->dleft = CAST_PTR(bucket_list_t *, CAST_PTR(char *, block_ptr) + table_size * sizeof(uint32_t));
+    ht_ptr->dleft = CAST_PTR(TYPED_NAME(bucket_list_t) *, CAST_PTR(char *, block_ptr) + table_size * sizeof(uint32_t));
 
     return 1;
 }
 
-int dleft_destroy(dleft_meta_t *ht_ptr)
+int TYPED_NAME(dleft_destroy)(TYPED_NAME(dleft_meta_t) *ht_ptr)
 {
 #ifdef CAVIUM_PLATFORM
     zfree(ht_ptr->table_name);
@@ -100,13 +90,13 @@ int dleft_destroy(dleft_meta_t *ht_ptr)
 }
 
 // On success, return the pointer to the value, otherwise return NULL;
-value_t * dleft_lookup(dleft_meta_t *ht_ptr, five_tuple_t key)
+TYPE * TYPED_NAME(dleft_lookup)(TYPED_NAME(dleft_meta_t) *ht_ptr, five_tuple_t key)
 {
     uint32_t update_hash_value[DLEFT];
     uint32_t bit_set, j;
     uint32_t idx;
     uint32_t *occupy_set = ht_ptr->occupy_set;
-    bucket_list_t * dleft = ht_ptr->dleft;
+    TYPED_NAME(bucket_list_t) * dleft = ht_ptr->dleft;
 
     for(j = 0; j < DLEFT; j++)
     {
@@ -128,7 +118,7 @@ value_t * dleft_lookup(dleft_meta_t *ht_ptr, five_tuple_t key)
             {
                 if(IS_EQUAL(dleft[update_hash_value[j]].entry[idx].key, key))
                 {
-					// printf("dleft_lookup\n");
+					// printf("TYPED_NAME(dleft_lookup)\n");
                     // we find the key in the hash table; 
 					// dleft[update_hash_value[j]].entry[idx].value = value;
                     return &(dleft[update_hash_value[j]].entry[idx].value);
@@ -142,15 +132,14 @@ value_t * dleft_lookup(dleft_meta_t *ht_ptr, five_tuple_t key)
 	return NULL;
 }
 
-#ifdef VALUE_TYPE
-#if VALUE_TYPE == BOOL
 
-void dleft_dump(dleft_meta_t *ht_ptr, char * filename)
+#if TYPE_STR == BOOL
+void TYPED_NAME(dleft_dump)(TYPED_NAME(dleft_meta_t) *ht_ptr, char * filename)
 {
     FILE *file = fopen(filename, "w");
     
     uint32_t *occupy_set = ht_ptr->occupy_set;
-    bucket_list_t * dleft = ht_ptr->dleft;
+    TYPED_NAME(bucket_list_t) * dleft = ht_ptr->dleft;
 
     for(int i = 0; i < ht_ptr->table_size; i++)
     {
@@ -177,17 +166,16 @@ void dleft_dump(dleft_meta_t *ht_ptr, char * filename)
     fclose(file);
 }
 #endif
-#endif
 
 
 // On success, return 1; otherwise, return -1;
-int dleft_delete(dleft_meta_t *ht_ptr, five_tuple_t key)
+int TYPED_NAME(dleft_delete)(TYPED_NAME(dleft_meta_t) *ht_ptr, five_tuple_t key)
 {
     uint32_t update_hash_value[DLEFT];
     uint32_t bit_set;
     uint32_t idx, j;
     uint32_t *occupy_set = ht_ptr->occupy_set;
-    bucket_list_t * dleft = ht_ptr->dleft;
+    TYPED_NAME(bucket_list_t) * dleft = ht_ptr->dleft;
 
     for(j = 0; j < DLEFT; j++)
     {
@@ -222,7 +210,7 @@ int dleft_delete(dleft_meta_t *ht_ptr, five_tuple_t key)
 // return 1: find key;
 // 0: do not find key but can insert;
 // -1: do not find key and cannot insert (hashmap is full);
-int dleft_update(dleft_meta_t *ht_ptr, five_tuple_t key, value_t value)
+int TYPED_NAME(dleft_update)(TYPED_NAME(dleft_meta_t) *ht_ptr, five_tuple_t key, TYPE value)
 {
     uint32_t update_hash_value[DLEFT];
     uint32_t bit_set, j;
@@ -230,7 +218,7 @@ int dleft_update(dleft_meta_t *ht_ptr, five_tuple_t key, value_t value)
     uint32_t least_load, least_load_idx;
     uint32_t bitset_array[DLEFT];
     uint32_t *occupy_set = ht_ptr->occupy_set;
-    bucket_list_t * dleft = ht_ptr->dleft;
+    TYPED_NAME(bucket_list_t) * dleft = ht_ptr->dleft;
 
     least_load_idx = 0;
     least_load = BUCKET_SIZE + 1;
@@ -305,14 +293,13 @@ int dleft_update(dleft_meta_t *ht_ptr, five_tuple_t key, value_t value)
 }
 
 
-// dleft_add_value() can only be called when value_t is uint32_t;
-#ifdef VALUE_TYPE
-#if VALUE_TYPE == U32
+// TYPED_NAME(dleft_add_value)() can only be called when TYPE is uint32_t;
+#if TYPE_STR == U32
 
 // return 1: find key;
 // 0: do not find key, but insert key with default value of delta;
 // -1: do not find key and cannot insert (hashmap is full);
-int dleft_add_value(dleft_meta_t *ht_ptr, five_tuple_t key, uint32_t delta)
+int TYPED_NAME(dleft_add_value)(TYPED_NAME(dleft_meta_t) *ht_ptr, five_tuple_t key, uint32_t delta)
 {
     uint32_t update_hash_value[DLEFT];
     uint32_t bit_set, j;
@@ -320,7 +307,7 @@ int dleft_add_value(dleft_meta_t *ht_ptr, five_tuple_t key, uint32_t delta)
     uint32_t least_load, least_load_idx;
     uint32_t bitset_array[DLEFT];
     uint32_t *occupy_set = ht_ptr->occupy_set;
-    bucket_list_t * dleft = ht_ptr->dleft;
+    TYPED_NAME(bucket_list_t) * dleft = ht_ptr->dleft;
 
     least_load_idx = 0;
     least_load = BUCKET_SIZE + 1;
@@ -389,12 +376,9 @@ int dleft_add_value(dleft_meta_t *ht_ptr, five_tuple_t key, uint32_t delta)
     return -2;
 }
 #endif
-#endif
 
 #ifdef	__cplusplus
 /* *INDENT-OFF* */
 }
 /* *INDENT-ON* */
 #endif
-
-#endif /* __DLEFT_HASH_H__ */

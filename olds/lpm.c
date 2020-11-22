@@ -1,11 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "./utils/common.h"
-#include "./utils/pkt-ops.h"
-#include "./utils/common.h"
-#include "./utils/lpm-algo.h"
-#include "./utils/pkt-puller.h"
+#include "../utils/common.h"
+#include "../utils/pkt-ops.h"
+#include "../utils/common.h"
+#include "../utils/lpm-algo.h"
+#include "../utils/pkt-puller.h"
 
 static iplookup_t *iplookup;
 static uint32_t gate_count[GATE_NUM];
