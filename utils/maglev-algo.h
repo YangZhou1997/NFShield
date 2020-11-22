@@ -37,7 +37,7 @@ typedef struct
 void maglev_update_backend(maglev_meta_t *mag_ptr, uint32_t *backend_ip, uint8_t *backend_status);
 void maglev_populate_lookup_entry(maglev_meta_t *mag_ptr);
 
-int maglev_init(char *table_name, uint32_t lookup_entry_num, uint32_t backend_num, uint32_t *backend_ip, uint8_t *backend_status, maglev_meta_t *mag_ptr)
+int maglev_init_inner(char *table_name, uint32_t lookup_entry_num, uint32_t backend_num, uint32_t *backend_ip, uint8_t *backend_status, maglev_meta_t *mag_ptr)
 {
     void *block_ptr;
     uint32_t total_size;
@@ -67,7 +67,7 @@ int maglev_init(char *table_name, uint32_t lookup_entry_num, uint32_t backend_nu
     return 1;
 }
 
-int maglev_destory(maglev_meta_t *mag_ptr)
+int maglev_destory_inner(maglev_meta_t *mag_ptr)
 {
 #ifdef CAVIUM_PLATFORM
     zfree(mag_ptr->table_name);

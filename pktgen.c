@@ -109,7 +109,7 @@ void *send_pkt_func(void *arg) {
     double time_taken; 
     time_taken = (end.tv_sec - start.tv_sec) * 1e6; 
     time_taken = (time_taken + (end.tv_usec - start.tv_usec)) * 1e-6;
-    printf("[send_pacekts %d]: %llu pkt sent, %.4lf Mpps\n", nf_idx, sent_pkts[nf_idx], (double)(sent_pkts[nf_idx]) * 1e-6 / time_taken);
+    printf("[send_pacekts %d]: %llu pkt sent, %.8lf Mpps\n", nf_idx, sent_pkts[nf_idx], (double)(sent_pkts[nf_idx]) * 1e-6 / time_taken);
     
     // ending all packet sending.
     force_quit_send = 1;
@@ -231,8 +231,8 @@ int main(int argc, char *argv[]){
     load_pkt(tracepath);
     init_socket(&sockfd, &send_sockaddr, &if_mac);
 
-    pthread_t threads[8];
-    int nf_idx[4] = {0, 1, 2, 3};
+    pthread_t threads[14];
+    int nf_idx[7] = {0, 1, 2, 3, 4, 5, 6};
     for(int i = 0; i < num_nfs*2; i += 2){
         pthread_create(&threads[i], NULL, send_pkt_func, (void*)(nf_idx+i/2));
         pthread_create(&threads[i+1], NULL, recv_pkt_func, (void*)(nf_idx+i/2));

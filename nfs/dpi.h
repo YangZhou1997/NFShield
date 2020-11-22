@@ -1,26 +1,28 @@
 #include <stdio.h>
 #include <stdlib.h>
-
+#include <arpa/inet.h>
 #include <string.h>
 
-#include "./utils/common.h"
-#include "./utils/pkt-ops.h"
-#include "./utils/common.h"
-#include "./utils/pkt-puller.h"
-#include "./utils/search_ac2.h"
-
+#include "../utils/common.h"
+#include "../utils/pkt-ops.h"
+#include "../utils/common.h"
+#include "../utils/pkt-puller.h"
+#include "../utils/search_ac2.h"
 // #define AC_DUMP
 
-int main(){
-    
-    ACSM_STRUCT2 *acsm = acsmNew2(NULL, NULL, NULL);
+static ACSM_STRUCT2 *acsm;
+static uint32_t match_total_dpi = 0;
+static uint32_t pkt_cnt_dpi = 0;
+
+int dpi_init(){
+    acsm = acsmNew2(NULL, NULL, NULL);
     if (!acsm){
         printf("acsm init failed\n");
         return -1;
     }
     acsm->acsmFormat = ACF_BANDED;
     
-    uint32_t match_total = 0;
+    match_total_dpi = 0;
 
 // #define AC_DUMP
 #ifdef AC_DUMP
@@ -54,27 +56,26 @@ int main(){
 #endif
 
     srand((unsigned)time(NULL));
-   
-    load_pkt("./data/ictf2010_100kflow.dat");
-    uint32_t pkt_cnt = 0;
-    while(1){
-        pkt_t *raw_pkt = next_pkt();
-        uint8_t *pkt_ptr = raw_pkt->content;
-        uint16_t pkt_len = raw_pkt->len;
-        swap_mac_addr(pkt_ptr);
-
-        int cur = 0;
-        acsmSearch2(acsm, (unsigned char *)(pkt_ptr + 54), pkt_len - 54, MatchFound, (void *)&match_total, &cur);
-
-        pkt_cnt ++;
-         if(pkt_cnt % PRINT_INTERVAL == 0) {
-             printf("dpi %u\n", pkt_cnt);
-             // break;
-         }
-    }    
-    printf("match_total: %u\n", match_total);
-#ifdef AC_DUMP
-    // acsmFree2(acsm);
-#endif
     return 0;
+}
+
+void dpi(uint8_t *pkt_ptr){
+    struct ipv4_hdr *iph = (struct ipv4_hdr *) (pkt_ptr + sizeof(struct ether_hdr));
+    uint16_t pkt_len = htons(((struct ipv4_hdr *)iph)->total_length) + sizeof(struct ether_hdr);
+
+    swap_mac_addr(pkt_ptr);
+
+    int cur = 0;
+    acsmSearch2(acsm, (unsigned char *)(pkt_ptr + 54), pkt_len - 54, MatchFound, (void *)&match_total_dpi, &cur);
+
+    pkt_cnt_dpi ++;
+    if(pkt_cnt_dpi % PRINT_INTERVAL == 0) {
+        printf("dpi %u\n", pkt_cnt_dpi);
+        // break;
+    }
+}
+
+void dpi_destroy(){
+    printf("match_total_dpi: %u\n", match_total_dpi);
+    acsmFree2(acsm);
 }

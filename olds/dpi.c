@@ -3,11 +3,11 @@
 
 #include <string.h>
 
-#include "./utils/common.h"
-#include "./utils/pkt-ops.h"
-#include "./utils/common.h"
-#include "./utils/pkt-puller.h"
-#include "./utils/search_ac2.h"
+#include "../utils/common.h"
+#include "../utils/pkt-ops.h"
+#include "../utils/common.h"
+#include "../utils/pkt-puller.h"
+#include "../utils/search_ac2.h"
 
 // #define AC_DUMP
 
