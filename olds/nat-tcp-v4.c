@@ -2,19 +2,26 @@
 #include <stdlib.h>
 #define VALUE_TYPE TUPLE
 
-#include "./utils/common.h"
-#include "./utils/pkt-ops.h"
-#include "./utils/common.h"
-#include "./utils/dleft-hash.h"
-#include "./utils/pkt-puller.h"
+#include "../utils/common.h"
+#include "../utils/pkt-ops.h"
+#include "../utils/common.h"
+// #define VALUE_TYPE TUPLE
+#define TYPE five_tuple_t
+#define TYPE_STR TUPLE
+#define TYPED_NAME(x) tuple_##x
+#include "../utils/dleft-hash.h"
+#undef TYPE
+#undef TYPE_STR
+#undef TYPED_NAME
+#include "../utils/pkt-puller.h"
 
-#define HT_SIZE (1.6 * 1024 * 1024)
-static dleft_meta_t ht_meta;
+#define HT_SIZE_NAT (1.6 * 1024 * 1024)
+static tuple_dleft_meta_t ht_meta;
 
 
 int main(){
 
-    if(-1 == dleft_init("nat-tcp-v4", HT_SIZE, &ht_meta))
+    if(-1 == tuple_dleft_init("nat-tcp-v4", HT_SIZE_NAT, &ht_meta))
     {
         printf("bootmemory allocation error\n");
         return 0;
@@ -22,7 +29,7 @@ int main(){
     
     srand((unsigned)time(NULL));
    
-    load_pkt("./data/ictf2010_100kflow.dat");
+    load_pkt("../data/ictf2010_100kflow.dat");
     int FAU_PORTS = 0;
     uint32_t pkt_cnt = 0;
     while(1){
@@ -47,7 +54,7 @@ int main(){
 // #define DEBUG
 
         five_tuple_t * lookup_value;
-        lookup_value = dleft_lookup(&ht_meta, flow);
+        lookup_value = tuple_dleft_lookup(&ht_meta, flow);
 
         if(lookup_value == NULL)
         {
@@ -64,8 +71,8 @@ int main(){
                 five_tuple_t rev_flow = REVERSE(outgoing_flow);
                 five_tuple_t rev_flow_2 = REVERSE(flow);
 
-                dleft_update(&ht_meta, flow, outgoing_flow);
-                dleft_update(&ht_meta, rev_flow, rev_flow_2);
+                tuple_dleft_update(&ht_meta, flow, outgoing_flow);
+                tuple_dleft_update(&ht_meta, rev_flow, rev_flow_2);
             }
         }
         else
@@ -78,7 +85,7 @@ int main(){
              printf("nat-tcp-v4 %u\n", pkt_cnt);
          }
     }    
-    dleft_destroy(&ht_meta);
+    tuple_dleft_destroy(&ht_meta);
 
     return 0;
 }
