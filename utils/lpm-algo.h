@@ -37,7 +37,7 @@ typedef struct{
     raw_entry_list_t raw_entry_list[RAW_SIZE];
 }iplookup_t;
 
-void lpm_init(iplookup_t *iplookup)
+void lpm_init_inner(iplookup_t *iplookup)
 {
     uint32_t i = 0, j = 0;
     for(i = 0; i < TBL24_SIZE; i++)

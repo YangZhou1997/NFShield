@@ -13,7 +13,7 @@ CFLAGS := -g -O3 $(ARM_FLAGS) -lm -lpthread
 
 CPPFLAGS := $(CFLAGS)
 
-TEST_PROGS := pktgen nf-top
+TEST_PROGS := lpm acl-fw maglev monitoring nat-tcp-v4 dpi
 
 # ==== Rules ==================================================================
 
@@ -24,6 +24,6 @@ default: $(TEST_PROGS) $(TEST_PROGS_CPP)
 clean:
 	$(RM) $(TEST_PROGS) $(TEST_PROGS_CPP)
 
-$(TEST_PROGS): $(TEST_PROGS).c Makefile utils/*.h
+$(TEST_PROGS): $(TEST_PROGS).c Makefile ../utils/*.h
 	$(CC) -static -o $@ $@.c $(CFLAGS)
 

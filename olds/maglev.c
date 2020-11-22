@@ -1,11 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "./utils/common.h"
-#include "./utils/pkt-ops.h"
-#include "./utils/common.h"
-#include "./utils/maglev-algo.h"
-#include "./utils/pkt-puller.h"
+#include "../utils/common.h"
+#include "../utils/pkt-ops.h"
+#include "../utils/common.h"
+#include "../utils/maglev-algo.h"
+#include "../utils/pkt-puller.h"
 
 static maglev_meta_t mag_meta;
 
@@ -21,7 +21,7 @@ int main(){
         backend_ip[i] = rand();
         backend_status[i] = HEALTHY;
     }
-    maglev_init("maglev", M, N, backend_ip, backend_status, &mag_meta);
+    maglev_init_inner("maglev", M, N, backend_ip, backend_status, &mag_meta);
  
     srand((unsigned)time(NULL));
    
@@ -44,7 +44,7 @@ int main(){
              printf("maglev %u\n", pkt_cnt);
          }
     }    
-    maglev_destory(&mag_meta);
+    maglev_destory_inner(&mag_meta);
 
     return 0;
 }
