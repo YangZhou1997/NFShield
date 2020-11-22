@@ -137,7 +137,7 @@ void recover_hashmap(){
         cnt++;
         bool_dleft_update(&ht_meta_acl_fw_cache, flow, val == 1);
     }
-    printf("recover done\n");
+    printf("acl-fw recover done\n");
 }
 
 static uint32_t pkt_cnt_acl_fw = 0;

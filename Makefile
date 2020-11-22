@@ -13,17 +13,20 @@ CFLAGS := -g -O3 $(ARM_FLAGS) -lm -lpthread
 
 CPPFLAGS := $(CFLAGS)
 
-TEST_PROGS := pktgen nf-top
+TEST_PROGS := pktgen nftop
 
 # ==== Rules ==================================================================
 
 .PHONY: default clean
 
-default: $(TEST_PROGS) $(TEST_PROGS_CPP)
+default: $(TEST_PROGS)
 
 clean:
-	$(RM) $(TEST_PROGS) $(TEST_PROGS_CPP)
+	$(RM) $(TEST_PROGS)
 
-$(TEST_PROGS): $(TEST_PROGS).c Makefile utils/*.h
+pktgen: pktgen.c utils/*.h
+	$(CC) -static -o $@ $@.c $(CFLAGS)
+
+nftop: nftop.c utils/*.h nfs/*.h
 	$(CC) -static -o $@ $@.c $(CFLAGS)
 

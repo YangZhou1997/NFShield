@@ -14,8 +14,9 @@
 #include "./utils/common.h"
 #include "./utils/pkt-ops.h"
 #include "./utils/pkt-header.h"
-#include "./utils/pkt-puller.h"
-// #include "./utils/pkt-puller2.h"
+// #include "./utils/pkt-puller.h" // zipf with on-flying seq gen; take small amount of memory (100k distinct packets)
+// #include "./utils/pkt-puller2.h" // preloaded normal or zipf traffic; take a lot of memory (2m packets)
+#include "./utils/pkt-puller3.h" // zipf with preloaded seq, a bit faster than the first; modest memory (100k distinct packets, and 2m seq number)
 #include "./utils/raw_socket.h"
 
 #define MIN(x, y) (x < y ? x : y)
@@ -204,7 +205,10 @@ int main(int argc, char *argv[]){
     force_quit_recv = 0;
     force_quit_send = 0;
 
+    // for pkt_puller2;
     // char * tracepath = "./data/ictf2010_2mpacket.dat";
+    // char * tracepath = "./data/ictf2010_2mpacket_zipf.dat"
+    // for pkt_puller and 3;
     char * tracepath = "./data/ictf2010_100kflow.dat";
 
     int num_nfs = 1;

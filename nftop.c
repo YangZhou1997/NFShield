@@ -20,6 +20,7 @@ void l2_fwd_destroy(){
     return;
 }
 
+static char nf_names[7][128];
 static int (*nf_init[7])();
 static void (*nf_process[7])(uint8_t *);
 static void (*nf_destroy[7])();
@@ -87,24 +88,9 @@ void *loop_func(void *arg){
 }
 
 int main(int argc, char* argv[]){
-    int num_nfs = 1;
+    int num_nfs = 0;
 
-    int option;
-    while((option = getopt(argc, argv, ":n:")) != -1){
-        switch (option) {
-            case 'n':
-                num_nfs = atoi(optarg);
-                printf("number of NFs: %d\n", num_nfs);
-                break;
-            case ':':  
-                printf("option -%c needs a value\n", optopt);  
-                break;  
-            case '?':  
-                printf("unknown option: -%c\n", optopt); 
-                break; 
-        }
-    }
-    
+
     nf_process[0] = l2_fwd;
     nf_process[1] = acl_fw;
     nf_process[2] = dpi;
@@ -129,6 +115,66 @@ int main(int argc, char* argv[]){
     nf_destroy[5] = monitoring_destroy;
     nf_destroy[6] = nat_tcp_v4_destroy;
 
+    int option;
+    while((option = getopt(argc, argv, ":n:")) != -1){
+        switch (option) {
+            case 'n':
+                strcpy(nf_names[num_nfs], optarg);
+                if(strcmp("l2_fwd", optarg) == 0){
+                    nf_process[num_nfs] = l2_fwd;
+                    nf_init[num_nfs] = l2_fwd_init;
+                    nf_destroy[num_nfs] = l2_fwd_destroy;
+                }
+                else if(strcmp("acl_fw", optarg) == 0){
+                    nf_process[num_nfs] = acl_fw;
+                    nf_init[num_nfs] = acl_fw_init;
+                    nf_destroy[num_nfs] = acl_fw_destroy;
+                }
+                else if(strcmp("dpi", optarg) == 0){
+                    nf_process[num_nfs] = dpi;
+                    nf_init[num_nfs] = dpi_init;
+                    nf_destroy[num_nfs] = dpi_destroy;
+                }
+                else if(strcmp("lpm", optarg) == 0){
+                    nf_process[num_nfs] = lpm;
+                    nf_init[num_nfs] = lpm_init;
+                    nf_destroy[num_nfs] = lpm_destroy;
+                }
+                else if(strcmp("maglev", optarg) == 0){
+                    nf_process[num_nfs] = maglev;
+                    nf_init[num_nfs] = maglev_init;
+                    nf_destroy[num_nfs] = maglev_destroy;
+                }
+                else if(strcmp("monitoring", optarg) == 0){
+                    nf_process[num_nfs] = monitoring;
+                    nf_init[num_nfs] = monitoring_init;
+                    nf_destroy[num_nfs] = monitoring_destroy;
+                }
+                else if(strcmp("nat_tcp_v4", optarg) == 0){
+                    nf_process[num_nfs] = nat_tcp_v4;
+                    nf_init[num_nfs] = nat_tcp_v4_init;
+                    nf_destroy[num_nfs] = nat_tcp_v4_destroy;
+                }
+                else{
+                    printf("%s is not a valid nf name\n", optarg);
+                    exit(0);
+                }
+                num_nfs++;
+                break;
+            case ':':  
+                printf("option -%c needs a value\n", optopt);  
+                break;  
+            case '?':  
+                printf("unknown option: -%c\n", optopt); 
+                break; 
+        }
+    }
+    printf("%d NFs: ", num_nfs);
+    for(int i = 0; i < num_nfs; i++){
+        printf("%s ", nf_names[i]);
+    }
+    printf("\n");
+    
     init_socket(&sockfd, &send_sockaddr, &if_mac);
 
     pthread_t threads[7];
