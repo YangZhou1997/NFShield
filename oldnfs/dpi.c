@@ -25,7 +25,7 @@ int main(){
 // #define AC_DUMP
 #ifdef AC_DUMP
     // You must use absolute address, otherwise gem5 will show "Page table fault when accessing virtual address 0"
-    FILE * file_rule = fopen("./data/sentense.rules", "r");
+    FILE * file_rule = fopen("../data/sentense.rules", "r");
     char rule_buf[1024];
     int cnt = 0, len = 0;
     while(fgets(rule_buf, 1023, file_rule)) {
@@ -45,17 +45,17 @@ int main(){
     acsmPrintInfo2(acsm);    
     printf("dpi AhoCorasick graph built up!\n");
 
-    FILE * f_dump = fopen("./data/ac.raw", "w");
+    FILE * f_dump = fopen("../data/ac.raw", "w");
     acsmDumpSparseDFA_Banded(acsm, f_dump);
 #else
-    FILE * f_restore = fopen("./data/ac.raw", "r");
+    FILE * f_restore = fopen("../data/ac.raw", "r");
     acsmRestoreSparseDFA_Banded(acsm, f_restore);
     printf("ac restore done!\n");
 #endif
 
     srand((unsigned)time(NULL));
    
-    load_pkt("./data/ictf2010_100kflow.dat");
+    load_pkt("../data/ictf2010_100kflow.dat");
     uint32_t pkt_cnt = 0;
     while(1){
         pkt_t *raw_pkt = next_pkt();

@@ -10,4 +10,8 @@ maglev
 recvRawEth
 sendRawEth
 pktgen
-nf-top
+nftop
+synth_zipf_seq
+synth_zipf_packets
+extract_packets
+extract_flow

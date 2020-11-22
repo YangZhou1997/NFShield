@@ -1,10 +1,10 @@
 #include "../utils/pkt-puller.h"
 
 int main(){
-    load_pkt("./ictf2010_100kflow.dat");
+    load_pkt("../data/ictf2010_100kflow.dat");
     int cnt = 0;
 
-    FILE *f_gem5 = fopen("./ictf2010_2mpacket_zipf.dat", "w");
+    FILE *f_gem5 = fopen("../data/ictf2010_2mpacket_zipf.dat", "w");
     uint64_t pkt_size = 0;
     while(cnt < 2*1024*1024){
         pkt_t* pkt = next_pkt();
