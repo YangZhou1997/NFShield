@@ -2,8 +2,8 @@
 #CCP := arm-linux-gnueabi-g++
 #  CC := gcc
 #  CCP := g++
-CC := riscv64-linux-gcc
-# CC := gcc
+# CC := riscv64-linux-gcc
+CC := gcc
 
 
 # Needed for support of v7 assembly instructions on ARM architecture
