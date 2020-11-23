@@ -47,7 +47,7 @@ void load_pkt(char *filename){
     printf("average pkt size = %lf\n", pkt_size * 1.0 / PKT_NUM);
 }
 
-pkt_t *next_pkt(){
+pkt_t *next_pkt(uint8_t nf_idx){
     int zipf_r = popzipf(PKT_NUM, 1.1);
     return pkts + zipf_r;
 }

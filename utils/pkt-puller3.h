@@ -20,7 +20,6 @@ extern "C" {
 
 pkt_t pkts[PKT_NUM];
 uint32_t seqs[TOTAL_SEQ];
-uint32_t seq_idx = 0;
 
 void load_pkt(char *filename){
     if(strcmp(filename, "./data/ictf2010_100kflow.dat") != 0){
@@ -64,11 +63,11 @@ void load_pkt(char *filename){
     printf("average pkt size = %lf\n", pkt_size * 1.0 / PKT_NUM);
 }
 
-pkt_t *next_pkt(){
-    // int zipf_r = popzipf(PKT_NUM, 1.1);
-    int zipf_r = seqs[seq_idx];
-    seq_idx = (seq_idx + 1) & (TOTAL_SEQ - 1);
-    return pkts + zipf_r;
+uint32_t seq_idx[7] = {0};
+pkt_t *next_pkt(uint8_t nf_idx){
+    pkt_t* curr_pkt = pkts + seqs[seq_idx[nf_idx]];
+    seq_idx[nf_idx] = (seq_idx[nf_idx] + 1) & (TOTAL_SEQ - 1);
+    return curr_pkt;
 }
 
 #ifdef	__cplusplus

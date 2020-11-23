@@ -76,7 +76,7 @@ void *send_pkt_func(void *arg) {
         burst_size = MIN(burst_size, TEST_NPKTS + WARMUP_NPKTS - sent_pkts[nf_idx]);
 
         for(int i = 0; i < burst_size; i++){
-            pkt_buf[i] = next_pkt();
+            pkt_buf[i] = next_pkt(nf_idx);
         	
             eh = (struct ether_hdr*)pkt_buf[i]->content;
             eh->d_addr.addr_bytes[5] = (uint8_t)nf_idx;

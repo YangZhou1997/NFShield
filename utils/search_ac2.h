@@ -42,9 +42,15 @@ typedef  unsigned int    uint32_t;
 typedef  unsigned short  uint16_t;
 typedef  unsigned char   uint8_t;
 
+#ifndef UINT8_MAX
 #define UINT8_MAX  0xFF
+#endif
+#ifndef UINT16_MAX
 #define UINT16_MAX 0xFFFF
+#endif
+#ifndef UINT32_MAX
 #define UINT32_MAX 0xFFFFFFFF
+#endif
 
 /*
    FAIL STATE for 1,2,or 4 bytes for state transitions

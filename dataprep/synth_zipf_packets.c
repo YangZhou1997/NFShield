@@ -7,7 +7,7 @@ int main(){
     FILE *f_gem5 = fopen("../data/ictf2010_2mpacket_zipf.dat", "w");
     uint64_t pkt_size = 0;
     while(cnt < 2*1024*1024){
-        pkt_t* pkt = next_pkt();
+        pkt_t* pkt = next_pkt(0);
         cnt ++;
 
         pkt_size += pkt->len;
