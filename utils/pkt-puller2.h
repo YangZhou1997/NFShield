@@ -48,10 +48,10 @@ void load_pkt(char *filename){
     fclose(file);
 }
 
-int curr_pkt_idx = 0;
-pkt_t *next_pkt(){
-    pkt_t* curr_pkt = pkts + curr_pkt_idx;
-    curr_pkt_idx = (curr_pkt_idx + 1) % PKT_NUM;
+uint32_t curr_pkt_idx[7] = {0};
+pkt_t *next_pkt(uint8_t nf_idx){
+    pkt_t* curr_pkt = pkts + curr_pkt_idx[nf_idx];
+    curr_pkt_idx[nf_idx] = (curr_pkt_idx[nf_idx] + 1) % PKT_NUM;
     return curr_pkt;
 }
 

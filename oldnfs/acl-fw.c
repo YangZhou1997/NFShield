@@ -165,7 +165,7 @@ int main(){
 #endif
 
     while(1){
-        pkt_t *raw_pkt = next_pkt();
+        pkt_t *raw_pkt = next_pkt(0);
         uint8_t *pkt_ptr = raw_pkt->content;
         uint16_t pkt_len = raw_pkt->len;
         swap_mac_addr(pkt_ptr);
