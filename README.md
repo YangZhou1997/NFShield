@@ -34,7 +34,7 @@ vagrant up --provider=virtualbox
     make sdk -j9 && make -j9
     ```
 
-## Prepare risc64 NF and pktgen binaries. 
+## Prepare riscv64 NF and pktgen binaries. 
 ```
 source riscv_build_env.sh
 make
@@ -53,4 +53,10 @@ bash run_qemu2.sh 8
 >> root
 cd NF-GEM5 && ./pktgen -n 4
 ```
+
+
+TODO: 
+
+Runtime parameter -- mac address. 
+Decide based on ether type or src mac address. 
 

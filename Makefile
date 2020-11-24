@@ -2,8 +2,8 @@
 #CCP := arm-linux-gnueabi-g++
 #  CC := gcc
 #  CCP := g++
-CC := riscv64-linux-gcc
-# CC := gcc
+# CC := riscv64-linux-gcc
+CC := gcc
 
 
 # Needed for support of v7 assembly instructions on ARM architecture
@@ -13,7 +13,7 @@ CFLAGS := -g -O3 $(ARM_FLAGS) -lm -lpthread
 
 CPPFLAGS := $(CFLAGS)
 
-TEST_PROGS := pktgen nftop
+TEST_PROGS := pktgen nftop recvRawEth sendRawEth
 
 # ==== Rules ==================================================================
 
@@ -30,3 +30,8 @@ pktgen: pktgen.c utils/*.h
 nftop: nftop.c utils/*.h nfs/*.h
 	$(CC) -static -o $@ $@.c $(CFLAGS)
 
+recvRawEth: recvRawEth.c
+	$(CC) -static -o $@ $@.c $(CFLAGS)
+
+sendRawEth: sendRawEth.c
+	$(CC) -static -o $@ $@.c $(CFLAGS)
