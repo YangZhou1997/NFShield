@@ -44,14 +44,14 @@ make
 ```
 bash run_qemu.sh 4
 >> root
-cd NF-GEM5 && ./nftop -n lpm -n dpi -n monitoring -n acl_fw
+cd NF-GEM5 && ./nftop -n lpm -n dpi -n monitoring -n acl_fw -d DE:AD:BE:EF:B7:90
 ```
 
 ## Start pktgen in another qemu with 8 cores
 ```
 bash run_qemu2.sh 8
 >> root
-cd NF-GEM5 && ./pktgen -n 4
+cd NF-GEM5 && ./pktgen -n 4 -d DE:AD:BE:EF:7F:45
 ```
 
 
@@ -59,4 +59,5 @@ TODO:
 
 Runtime parameter -- mac address. 
 Decide based on ether type or src mac address. 
-
+cpu stats to measure the cpu utilization. -- test in VM
+    not sure if kernel overhead is high?? 

@@ -19,19 +19,13 @@
 #define DEFAULT_IF	"eth0"
 #define ETHER_TYPE	0x0800
 #define ETH_P_IP	0x0800		/* Internet Protocol packet	*/
+#define ETH_P_ALL	0x0003		/* Every packet (be careful!!!) */
 #define ETH_ALEN	6		/* Octets in one ethernet addr	 */
-
-#define MY_DEST_MAC0	0x00
-#define MY_DEST_MAC1	0x00
-#define MY_DEST_MAC2	0x00
-#define MY_DEST_MAC3	0x00
-#define MY_DEST_MAC4	0x00
-#define MY_DEST_MAC5	0x00
 
 #define BUF_SIZ		1536
 #define MAX_BATCH_SIZE 32
 
-void init_socket(int *sockfd_p, struct sockaddr_ll* send_sockaddr, struct ifreq *if_mac_p){
+void init_socket(int *sockfd_p, struct sockaddr_ll* send_sockaddr, struct ifreq *if_mac_p, uint8_t dstmac[]){
     // setup socket for receiving packets.
 	int sockfd, ret, i;
 	int sockopt;
@@ -54,7 +48,8 @@ void init_socket(int *sockfd_p, struct sockaddr_ll* send_sockaddr, struct ifreq 
 
 	/* Open PF_PACKET socket, listening for EtherType ETHER_TYPE */
 	// if ((sockfd = socket(PF_PACKET, SOCK_RAW, htons(ETHER_TYPE))) == -1) {
-	if ((sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_IP))) == -1) {
+	// if ((sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_IP))) == -1) {
+	if ((sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL))) == -1) {
 		printf("[recv_pacekts] socket");	
 		return;
 	}
@@ -110,12 +105,12 @@ void init_socket(int *sockfd_p, struct sockaddr_ll* send_sockaddr, struct ifreq 
 	/* Address length*/
 	socket_address.sll_halen = ETH_ALEN;
 	/* Destination MAC */
-	socket_address.sll_addr[0] = MY_DEST_MAC0;
-	socket_address.sll_addr[1] = MY_DEST_MAC1;
-	socket_address.sll_addr[2] = MY_DEST_MAC2;
-	socket_address.sll_addr[3] = MY_DEST_MAC3;
-	socket_address.sll_addr[4] = MY_DEST_MAC4;
-	socket_address.sll_addr[5] = MY_DEST_MAC5;
+	socket_address.sll_addr[0] = dstmac[0];
+	socket_address.sll_addr[1] = dstmac[1];
+	socket_address.sll_addr[2] = dstmac[2];
+	socket_address.sll_addr[3] = dstmac[3];
+	socket_address.sll_addr[4] = dstmac[4];
+	socket_address.sll_addr[5] = dstmac[5];
     
     *sockfd_p = sockfd;
     *send_sockaddr = socket_address;
