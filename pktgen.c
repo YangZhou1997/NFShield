@@ -18,6 +18,7 @@
 // #include "./utils/pkt-puller2.h" // preloaded normal or zipf traffic; take a lot of memory (2m packets)
 #include "./utils/pkt-puller3.h" // zipf with preloaded seq, a bit faster than the first; modest memory (100k distinct packets, and 2m seq number)
 #include "./utils/raw_socket.h"
+#include "./utils/parsing_mac.h"
 
 #define MIN(x, y) (x < y ? x : y)
 
@@ -36,6 +37,8 @@ static int sockfd  = 0;
 static struct sockaddr_ll send_sockaddr;
 static struct ifreq if_mac;
 
+uint8_t dstmac[6];
+
 void *send_pkt_func(void *arg) {
 	// which nf's traffic this thread sends
     int nf_idx = *(int*)arg;
@@ -50,12 +53,12 @@ void *send_pkt_func(void *arg) {
     	eh->s_addr.addr_bytes[3] = ((uint8_t *)&if_mac.ifr_hwaddr.sa_data)[3];
     	eh->s_addr.addr_bytes[4] = ((uint8_t *)&if_mac.ifr_hwaddr.sa_data)[4];
     	eh->s_addr.addr_bytes[5] = ((uint8_t *)&if_mac.ifr_hwaddr.sa_data)[5];
-    	eh->d_addr.addr_bytes[0] = MY_DEST_MAC0;
-    	eh->d_addr.addr_bytes[1] = MY_DEST_MAC1;
-    	eh->d_addr.addr_bytes[2] = MY_DEST_MAC2;
-    	eh->d_addr.addr_bytes[3] = MY_DEST_MAC3;
-    	eh->d_addr.addr_bytes[4] = MY_DEST_MAC4;
-    	eh->d_addr.addr_bytes[5] = MY_DEST_MAC5;
+    	eh->d_addr.addr_bytes[0] = dstmac[0];
+    	eh->d_addr.addr_bytes[1] = dstmac[1];
+    	eh->d_addr.addr_bytes[2] = dstmac[2];
+    	eh->d_addr.addr_bytes[3] = dstmac[3];
+    	eh->d_addr.addr_bytes[4] = dstmac[4];
+    	eh->d_addr.addr_bytes[5] = dstmac[5];
     	/* Ethertype field */
     	eh->ether_type = htons(ETH_P_IP);
     }
@@ -79,7 +82,7 @@ void *send_pkt_func(void *arg) {
             pkt_buf[i] = next_pkt(nf_idx);
         	
             eh = (struct ether_hdr*)pkt_buf[i]->content;
-            eh->d_addr.addr_bytes[5] = (uint8_t)nf_idx;
+            eh->ether_type = htons((uint16_t)nf_idx);
 
             tcph = (struct tcp_hdr *) (pkt_buf[i]->content + sizeof(struct ipv4_hdr) + sizeof(struct ether_hdr));
             tcph->sent_seq = 0xdeadbeef;
@@ -151,7 +154,8 @@ void * recv_pkt_func(void *arg){
         for(int i = 0; i < numpkts; i++){
         	eh = (struct ether_hdr *) pkt_buf[i]->content;
         	tcph = (struct tcp_hdr *) (pkt_buf[i]->content + sizeof(struct ipv4_hdr) + sizeof(struct ether_hdr));
-            recv_nf_idx = (int)eh->d_addr.addr_bytes[5];
+            recv_nf_idx = (int)htons((eh->ether_type));
+
             // printf("[recv_pacekts %d] recv_nf_idx = %d, tcph->sent_seq = %x\n", nf_idx, recv_nf_idx, tcph->sent_seq);
 
             if(tcph->sent_seq != 0xdeadbeef){
@@ -205,6 +209,7 @@ int main(int argc, char *argv[]){
     force_quit_recv = 0;
     force_quit_send = 0;
 
+
     // for pkt_puller2;
     // char * tracepath = "./data/ictf2010_2mpacket.dat";
     // char * tracepath = "./data/ictf2010_2mpacket_zipf.dat"
@@ -212,9 +217,9 @@ int main(int argc, char *argv[]){
     char * tracepath = "./data/ictf2010_100kflow.dat";
 
     int num_nfs = 1;
-
+    
     int option;
-    while((option = getopt(argc, argv, ":n:t:")) != -1){
+    while((option = getopt(argc, argv, ":n:t:d:")) != -1){
         switch (option) {
             case 'n':
                 num_nfs = atoi(optarg);
@@ -223,6 +228,11 @@ int main(int argc, char *argv[]){
             case 't':
                 tracepath = optarg;
                 printf("trace path: %s\n", tracepath);
+                break;
+            case 'd':
+                parse_mac(dstmac, optarg);
+                printf("dstmac: %02x:%02x:%02x:%02x:%02x:%02x\n", dstmac[0], dstmac[1], dstmac[2], dstmac[3], dstmac[4], dstmac[5]);
+                break;
              case ':':  
                 printf("option -%c needs a value\n", optopt);  
                 break;  
@@ -233,7 +243,7 @@ int main(int argc, char *argv[]){
     }
 
     load_pkt(tracepath);
-    init_socket(&sockfd, &send_sockaddr, &if_mac);
+    init_socket(&sockfd, &send_sockaddr, &if_mac, dstmac);
 
     pthread_t threads[14];
     int nf_idx[7] = {0, 1, 2, 3, 4, 5, 6};

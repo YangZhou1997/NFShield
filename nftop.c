@@ -8,6 +8,9 @@
 #include "./nfs/maglev.h"
 #include "./nfs/monitoring.h"
 #include "./nfs/nat-tcp-v4.h"
+#include "./utils/parsing_mac.h"
+
+uint8_t dstmac[6];
 
 int l2_fwd_init(){
     return 0;
@@ -56,24 +59,24 @@ void *loop_func(void *arg){
             eh = (struct ether_hdr*) pkt_buf[i]->content;
         
             /* Ethernet header */
-            // @yang, the nf mush swap the mac address;
-            eh->d_addr.addr_bytes[0] = MY_DEST_MAC0;
-        	eh->d_addr.addr_bytes[1] = MY_DEST_MAC1;
-        	eh->d_addr.addr_bytes[2] = MY_DEST_MAC2;
-        	eh->d_addr.addr_bytes[3] = MY_DEST_MAC3;
-        	eh->d_addr.addr_bytes[4] = MY_DEST_MAC4;
-        	eh->d_addr.addr_bytes[5] = eh->s_addr.addr_bytes[5];
+            // @yang, the nf must have swapped the mac address;
+            // eh->d_addr.addr_bytes[0] = MY_DEST_MAC0;
+        	// eh->d_addr.addr_bytes[1] = MY_DEST_MAC1;
+        	// eh->d_addr.addr_bytes[2] = MY_DEST_MAC2;
+        	// eh->d_addr.addr_bytes[3] = MY_DEST_MAC3;
+        	// eh->d_addr.addr_bytes[4] = MY_DEST_MAC4;
+        	// eh->d_addr.addr_bytes[5] = eh->s_addr.addr_bytes[5];
 
-            // @yang, you must set source mac correct in order to send it out. 
-            eh->s_addr.addr_bytes[0] = ((uint8_t *)&if_mac.ifr_hwaddr.sa_data)[0];
-        	eh->s_addr.addr_bytes[1] = ((uint8_t *)&if_mac.ifr_hwaddr.sa_data)[1];
-        	eh->s_addr.addr_bytes[2] = ((uint8_t *)&if_mac.ifr_hwaddr.sa_data)[2];
-        	eh->s_addr.addr_bytes[3] = ((uint8_t *)&if_mac.ifr_hwaddr.sa_data)[3];
-        	eh->s_addr.addr_bytes[4] = ((uint8_t *)&if_mac.ifr_hwaddr.sa_data)[4];
-        	eh->s_addr.addr_bytes[5] = ((uint8_t *)&if_mac.ifr_hwaddr.sa_data)[5];
+            // // @yang, you must set source mac correct in order to send it out. 
+            // eh->s_addr.addr_bytes[0] = ((uint8_t *)&if_mac.ifr_hwaddr.sa_data)[0];
+        	// eh->s_addr.addr_bytes[1] = ((uint8_t *)&if_mac.ifr_hwaddr.sa_data)[1];
+        	// eh->s_addr.addr_bytes[2] = ((uint8_t *)&if_mac.ifr_hwaddr.sa_data)[2];
+        	// eh->s_addr.addr_bytes[3] = ((uint8_t *)&if_mac.ifr_hwaddr.sa_data)[3];
+        	// eh->s_addr.addr_bytes[4] = ((uint8_t *)&if_mac.ifr_hwaddr.sa_data)[4];
+        	// eh->s_addr.addr_bytes[5] = ((uint8_t *)&if_mac.ifr_hwaddr.sa_data)[5];
         	
         	/* Ethertype field */
-        	eh->ether_type = htons(ETH_P_IP);
+        	// eh->ether_type = htons(ETH_P_IP);
         }
     
         sendto_batch(sockfd, numpkts, pkt_buf, &send_sockaddr);
@@ -116,7 +119,7 @@ int main(int argc, char* argv[]){
     nf_destroy[6] = nat_tcp_v4_destroy;
 
     int option;
-    while((option = getopt(argc, argv, ":n:")) != -1){
+    while((option = getopt(argc, argv, ":n:d:")) != -1){
         switch (option) {
             case 'n':
                 strcpy(nf_names[num_nfs], optarg);
@@ -161,6 +164,10 @@ int main(int argc, char* argv[]){
                 }
                 num_nfs++;
                 break;
+            case 'd':
+                parse_mac(dstmac, optarg);
+                printf("dstmac: %02x:%02x:%02x:%02x:%02x:%02x\n", dstmac[0], dstmac[1], dstmac[2], dstmac[3], dstmac[4], dstmac[5]);
+                break;
             case ':':  
                 printf("option -%c needs a value\n", optopt);  
                 break;  
@@ -175,7 +182,7 @@ int main(int argc, char* argv[]){
     }
     printf("\n");
     
-    init_socket(&sockfd, &send_sockaddr, &if_mac);
+    init_socket(&sockfd, &send_sockaddr, &if_mac, dstmac);
 
     pthread_t threads[7];
     int nf_idx[7] = {0, 1, 2, 3, 4, 5, 6};
