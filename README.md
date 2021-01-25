@@ -1,5 +1,16 @@
 # NFs and pktgen running on FireSim-simulated riscv64 buildroot SMP linux
 
+## Install git LFS to get the data files (if you has not installed)
+```
+curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | sudo bash
+sudo apt-get install git-lfs
+git lfs install
+# inside rep
+git lfs pull
+```
+For the other OS, please refer to [this page](https://github.com/git-lfs/git-lfs/wiki/Installation). 
+
+
 ## Initing a new ubuntu VM
 ```
 wget -c https://releases.hashicorp.com/vagrant/2.0.3/vagrant_2.0.3_x86_64.deb
