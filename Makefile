@@ -13,7 +13,7 @@ CFLAGS := -g -O3 $(ARM_FLAGS) -lm -lpthread
 
 CPPFLAGS := $(CFLAGS)
 
-TEST_PROGS := pktgen nftop recvRawEth sendRawEth
+TEST_PROGS := pktgen nftop recvRawEth sendRawEth testRawSendingRate_64B testRawSendingRate_trace testRawNFRate_trace
 
 # ==== Rules ==================================================================
 
@@ -34,4 +34,13 @@ recvRawEth: recvRawEth.c
 	$(CC) -static -o $@ $@.c $(CFLAGS)
 
 sendRawEth: sendRawEth.c
+	$(CC) -static -o $@ $@.c $(CFLAGS)
+
+testRawSendingRate_64B: testRawSendingRate_64B.c
+	$(CC) -static -o $@ $@.c $(CFLAGS)
+
+testRawSendingRate_trace: testRawSendingRate_trace.c
+	$(CC) -static -o $@ $@.c $(CFLAGS)
+
+testRawNFRate_trace: testRawNFRate_trace.c
 	$(CC) -static -o $@ $@.c $(CFLAGS)

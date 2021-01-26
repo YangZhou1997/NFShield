@@ -16,6 +16,7 @@
 #include <sys/socket.h>
 #include <net/if.h>
 #include <netinet/ether.h>
+#include <unistd.h> // for close
 
 // #define DEST_MAC0	0x00
 // #define DEST_MAC1	0x00
