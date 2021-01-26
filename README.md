@@ -65,6 +65,20 @@ bash run_qemu2.sh 8
 cd NF-GEM5 && ./pktgen -n 4 -d DE:AD:BE:EF:7F:45
 ```
 
+## Testing raw socket sending rate (64B)
+```
+./testRawSendingRate_64B eth0 DE:AD:BE:EF:7F:45
+```
+
+## Testing raw socket sending rate (real traffic trace)
+```
+./testRawSendingRate_trace eth0 DE:AD:BE:EF:7F:45
+```
+
+## Testing raw NF processing rate (real traffic trace)
+```
+./testRawNFRate_trace eth0 DE:AD:BE:EF:7F:45
+```
 
 TODO: 
 
