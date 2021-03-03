@@ -16,7 +16,6 @@
 #include "pkt-header.h"
 
 #define DEFAULT_IF	"eth0"
-#define ETHER_TYPE	0x0800
 #define ETH_P_IP	0x0800		/* Internet Protocol packet	*/
 #define ETH_P_ALL	0x0003		/* Every packet (be careful!!!) */
 #define ETH_ALEN	6		/* Octets in one ethernet addr	 */
@@ -24,7 +23,7 @@
 #define BUF_SIZ		1536
 #define MAX_BATCH_SIZE 32
 
-void init_socket(int *sockfd_p, struct sockaddr_ll* send_sockaddr, struct ifreq *if_mac_p, uint8_t dstmac[]){
+void init_socket(int *sockfd_p, struct sockaddr_ll* send_sockaddr, struct ifreq *if_mac_p, uint8_t dstmac[], int nf_idx){
     // setup socket for receiving packets.
 	int sockfd, ret, i;
 	int sockopt;
@@ -46,18 +45,20 @@ void init_socket(int *sockfd_p, struct sockaddr_ll* send_sockaddr, struct ifreq 
 	memset(&if_ip, 0, sizeof(struct ifreq));
 
 	/* Open PF_PACKET socket, listening for EtherType ETHER_TYPE */
-	// if ((sockfd = socket(PF_PACKET, SOCK_RAW, htons(ETHER_TYPE))) == -1) {
 	// if ((sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_IP))) == -1) {
-	if ((sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL))) == -1) {
-		printf("[recv_pacekts] socket");	
+	// if ((sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL))) == -1) {
+    // you cannot use the occupied protocol number. 
+	if ((sockfd = socket(AF_PACKET, SOCK_RAW, htons((uint16_t)(nf_idx + 0x1234)))) == -1) {
+        printf("[recv_pacekts] socket");
 		return;
 	}
 
 	/* Set interface to promiscuous mode - do we need to do this every time? */
-	strncpy(ifopts.ifr_name, ifName, IFNAMSIZ-1);
-	ioctl(sockfd, SIOCGIFFLAGS, &ifopts);
-	ifopts.ifr_flags |= IFF_PROMISC;
-	ioctl(sockfd, SIOCSIFFLAGS, &ifopts);
+	// strncpy(ifopts.ifr_name, ifName, IFNAMSIZ-1);
+	// ioctl(sockfd, SIOCGIFFLAGS, &ifopts);
+	// ifopts.ifr_flags |= IFF_PROMISC;
+	// ioctl(sockfd, SIOCSIFFLAGS, &ifopts);
+    
 	/* Allow the socket to be reused - incase connection is closed prematurely */
 	if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &sockopt, sizeof sockopt) == -1) {
 		printf("[recv_pacekts] setsockopt");

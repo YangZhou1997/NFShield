@@ -33,11 +33,11 @@ static volatile uint8_t force_quit_recv;
 #define WARMUP_NPKTS (1*50*1024)
 #define TEST_NPKTS (2*50*1024)
 
-static int sockfd  = 0;
-static struct sockaddr_ll send_sockaddr;
-static struct ifreq if_mac;
+static uint8_t dstmac[6];
+__thread int sockfd  = 0;
+__thread struct sockaddr_ll send_sockaddr;
+__thread struct ifreq if_mac;
 
-uint8_t dstmac[6];
 static volatile uint8_t print_order = 0;
 int num_nfs = 1;
 
@@ -45,6 +45,8 @@ void *send_pkt_func(void *arg) {
 	// which nf's traffic this thread sends
     int nf_idx = *(int*)arg;
     set_affinity(nf_idx);
+    
+    init_socket(&sockfd, &send_sockaddr, &if_mac, dstmac, nf_idx);
     
     struct ether_hdr* eh;
     for(int i = 0; i < PKT_NUM; i++){
@@ -85,7 +87,7 @@ void *send_pkt_func(void *arg) {
             pkt_buf[i] = next_pkt(nf_idx);
         	
             eh = (struct ether_hdr*)pkt_buf[i]->content;
-            eh->ether_type = htons((uint16_t)nf_idx);
+            eh->ether_type = htons((uint16_t)nf_idx + 0x1234);
 
             tcph = (struct tcp_hdr *) (pkt_buf[i]->content + sizeof(struct ipv4_hdr) + sizeof(struct ether_hdr));
             tcph->sent_seq = 0xdeadbeef;
@@ -116,6 +118,7 @@ void *send_pkt_func(void *arg) {
     double time_taken; 
     time_taken = (end.tv_sec - start.tv_sec) * 1e6; 
     time_taken = (time_taken + (end.tv_usec - start.tv_usec)) * 1e-6;
+	close(sockfd);
 
     // ending all packet sending.
     force_quit_send = 1;
@@ -143,6 +146,7 @@ void * recv_pkt_func(void *arg){
     // which nf's traffic this thread sends
     int nf_idx = *(int*)arg;
     set_affinity(nf_idx + num_nfs);
+    init_socket(&sockfd, &send_sockaddr, &if_mac, dstmac, nf_idx);
 
     int recv_nf_idx = 0, numpkts = 0;
     struct ether_hdr *eh;
@@ -165,7 +169,7 @@ void * recv_pkt_func(void *arg){
         for(int i = 0; i < numpkts; i++){
         	eh = (struct ether_hdr *) pkt_buf[i]->content;
         	tcph = (struct tcp_hdr *) (pkt_buf[i]->content + sizeof(struct ipv4_hdr) + sizeof(struct ether_hdr));
-            recv_nf_idx = (int)htons((eh->ether_type));
+            recv_nf_idx = (int)htons((eh->ether_type)) - 0x1234;
 
             // printf("[recv_pacekts %d] recv_nf_idx = %d, tcph->sent_seq = %x\n", nf_idx, recv_nf_idx, tcph->sent_seq);
 
@@ -198,6 +202,8 @@ void * recv_pkt_func(void *arg){
         free(pkt_buf[i]->content);
         free(pkt_buf[i]);
     }
+	close(sockfd);
+
     // sleep(1);
     while(print_order != num_nfs){}
     exit(0);
@@ -253,7 +259,6 @@ int main(int argc, char *argv[]){
     }
 
     load_pkt(tracepath);
-    init_socket(&sockfd, &send_sockaddr, &if_mac, dstmac);
 
     pthread_t threads[14];
     int nf_idx[7] = {0, 1, 2, 3, 4, 5, 6};
@@ -265,9 +270,7 @@ int main(int argc, char *argv[]){
     for(int i = 0; i < num_nfs*2; i += 2){
         pthread_join(threads[i], NULL);
         pthread_join(threads[i+1], NULL);
-    }
-    
-	close(sockfd);
+    }    
 
     return 0;
 }
