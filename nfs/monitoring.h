@@ -24,6 +24,7 @@ int monitoring_init(){
         return 0;
     }
     srand((unsigned)time(NULL));
+    printf("monitoring init done\n");
     return 0;
 }
 void monitoring(uint8_t *pkt_ptr){

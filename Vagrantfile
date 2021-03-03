@@ -9,7 +9,7 @@ RELEASE='2020.08'
 
 ### Change here for more memory/cores ###
 VM_MEMORY=16384
-VM_CORES=8
+VM_CORES=12
 
 Vagrant.configure('2') do |config|
         config.vm.box = 'ubuntu/bionic64'

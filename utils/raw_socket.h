@@ -74,6 +74,13 @@ void init_socket(int *sockfd_p, struct sockaddr_ll* send_sockaddr, struct ifreq 
 		close(sockfd);
         return;
 	}
+    uint32_t bufsize = 1024 * 200; // 200KB r/w buffer size for each sockets. 
+    if(setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, &bufsize, sizeof(bufsize)) == -1) {
+		printf("[recv_pacekts] SO_BINDTODEVICE");
+    }
+    if(setsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, &bufsize, sizeof(bufsize)) == -1) {
+		printf("[recv_pacekts] SO_BINDTODEVICE");
+    }
 
     // setup socket for sending packets. 
     struct ifreq if_idx;

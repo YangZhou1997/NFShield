@@ -161,6 +161,7 @@ int acl_fw_init(){
 #ifndef FW_DUMP
     recover_hashmap();
 #endif
+    printf("acl_fw init done\n");
     return 0;
 }
 
