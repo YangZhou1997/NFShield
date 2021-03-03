@@ -23,6 +23,9 @@
 #define BUF_SIZ		1536
 #define MAX_BATCH_SIZE 32
 
+#define CUSTOM_PROTO_BASE 0x1234
+// #define CUSTOM_PROTO_BASE 0
+
 void init_socket(int *sockfd_p, struct sockaddr_ll* send_sockaddr, struct ifreq *if_mac_p, uint8_t dstmac[], int nf_idx){
     // setup socket for receiving packets.
 	int sockfd, ret, i;
@@ -48,7 +51,7 @@ void init_socket(int *sockfd_p, struct sockaddr_ll* send_sockaddr, struct ifreq 
 	// if ((sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_IP))) == -1) {
 	// if ((sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL))) == -1) {
     // you cannot use the occupied protocol number. 
-	if ((sockfd = socket(AF_PACKET, SOCK_RAW, htons((uint16_t)(nf_idx + 0x1234)))) == -1) {
+	if ((sockfd = socket(AF_PACKET, SOCK_RAW, htons((uint16_t)(nf_idx + CUSTOM_PROTO_BASE)))) == -1) {
         printf("[recv_pacekts] socket");
 		return;
 	}

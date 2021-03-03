@@ -49,6 +49,8 @@ void *loop_func(void *arg){
         exit(0);
     }
 
+    uint64_t pkt_size_sum = 0;
+    uint32_t pkt_num = 0;
     while(1){
         numpkts = recvfrom_batch(sockfd, BUF_SIZ, pkt_buf);
         if(numpkts <= 0){
@@ -57,9 +59,14 @@ void *loop_func(void *arg){
         // printf("[loop_func %d] receiving numpkts %d\n", nf_idx, numpkts);
         for(int i = 0; i < numpkts; i++){
             nf_process[nf_idx](pkt_buf[i]->content);
-            eh = (struct ether_hdr*) pkt_buf[i]->content;
+            // eh = (struct ether_hdr*) pkt_buf[i]->content;
+         
+            pkt_size_sum += pkt_buf[i]->len;
+            pkt_num ++;
+            if(pkt_num % PRINT_INTERVAL == 0){
+                printf("%s (nf_idx %u): pkt_cnt %u, avg_pkt_size %lf\n", nf_names[nf_idx], nf_idx, pkt_num, pkt_size_sum * 1.0 / pkt_num);
+            }
         }
-    
         sendto_batch(sockfd, numpkts, pkt_buf, &send_sockaddr);
     }
     nf_destroy[nf_idx]();

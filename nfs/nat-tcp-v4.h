@@ -74,9 +74,9 @@ void nat_tcp_v4(uint8_t *pkt_ptr){
     }
 
     pkt_cnt_nat ++;
-    if(pkt_cnt_nat % PRINT_INTERVAL == 0) {
-        printf("nat-tcp-v4 %u\n", pkt_cnt_nat);
-    }
+    // if(pkt_cnt_nat % PRINT_INTERVAL == 0) {
+    //     printf("nat-tcp-v4 %u\n", pkt_cnt_nat);
+    // }
 }
 void nat_tcp_v4_destroy(){
     tuple_dleft_destroy(&ht_meta_nat);
