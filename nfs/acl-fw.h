@@ -211,9 +211,9 @@ void acl_fw(uint8_t *pkt_ptr){
 		bool_dleft_update(&ht_meta_acl_fw_cache, flow, dropped);
 	}
 
-    if(pkt_cnt_acl_fw % PRINT_INTERVAL == 0) {
-        printf("acl-fw %u\n", pkt_cnt_acl_fw);
-    }
+    // if(pkt_cnt_acl_fw % PRINT_INTERVAL == 0) {
+    //     printf("acl-fw %u\n", pkt_cnt_acl_fw);
+    // }
 #ifdef FW_DUMP    
     if(pkt_cnt_acl_fw == 1024 * 1024) {
         bool_dleft_dump(&ht_meta_acl_fw_cache, "./data/acl-fw-hashmap-dleft.raw");

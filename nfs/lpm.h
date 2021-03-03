@@ -38,9 +38,9 @@ void lpm(uint8_t *pkt_ptr){
     uint16_t gate = lpm_lookup(iplookup, srcip);
     gate_count[gate] ++;
     pkt_cnt_lpm ++;
-     if(pkt_cnt_lpm % PRINT_INTERVAL == 0) {
-         printf("lpm %u\n", pkt_cnt_lpm);
-     }
+    // if(pkt_cnt_lpm % PRINT_INTERVAL == 0) {
+    //     printf("lpm %u\n", pkt_cnt_lpm);
+    // }
 }
 
 void lpm_destroy(){
