@@ -10,7 +10,6 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <net/if.h>
-#include <pthread.h> 
 #include <signal.h>
 #include <sys/time.h> 
 #include <unistd.h>

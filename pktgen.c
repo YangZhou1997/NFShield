@@ -38,10 +38,13 @@ static struct sockaddr_ll send_sockaddr;
 static struct ifreq if_mac;
 
 uint8_t dstmac[6];
+static volatile uint8_t print_order = 0;
+int num_nfs = 1;
 
 void *send_pkt_func(void *arg) {
 	// which nf's traffic this thread sends
     int nf_idx = *(int*)arg;
+    set_affinity(nf_idx);
     
     struct ether_hdr* eh;
     for(int i = 0; i < PKT_NUM; i++){
@@ -113,15 +116,21 @@ void *send_pkt_func(void *arg) {
     double time_taken; 
     time_taken = (end.tv_sec - start.tv_sec) * 1e6; 
     time_taken = (time_taken + (end.tv_usec - start.tv_usec)) * 1e-6;
-    printf("[send_pacekts %d]: %llu pkt sent, %.8lf Mpps\n", nf_idx, sent_pkts[nf_idx], (double)(sent_pkts[nf_idx]) * 1e-6 / time_taken);
-    
+
     // ending all packet sending.
     force_quit_send = 1;
     // ending all packet receiving. 
     force_quit_recv = 1;
 
+    while(print_order != nf_idx){}
+    printf("[send_pacekts %d]: %llu pkt sent, %.8lf Mpps\n", nf_idx, sent_pkts[nf_idx], (double)(sent_pkts[nf_idx]) * 1e-6 / time_taken);
+    barrier();
+    print_order = nf_idx + 1;
+    barrier();
+   
     // wait for force_quit_send taking effect
-    sleep(1);
+    // sleep(1);
+    while(print_order != num_nfs){}
     exit(0);
     // any of the following two will crash. ?? why
     // pthread_exit(arg);
@@ -133,6 +142,8 @@ static volatile uint64_t invalid_pkts = 0;
 void * recv_pkt_func(void *arg){
     // which nf's traffic this thread sends
     int nf_idx = *(int*)arg;
+    set_affinity(nf_idx + num_nfs);
+
     int recv_nf_idx = 0, numpkts = 0;
     struct ether_hdr *eh;
     struct tcp_hdr *tcph;
@@ -187,7 +198,8 @@ void * recv_pkt_func(void *arg){
         free(pkt_buf[i]->content);
         free(pkt_buf[i]);
     }
-    sleep(1);
+    // sleep(1);
+    while(print_order != num_nfs){}
     exit(0);
     // pthread_exit(NULL);
 	// return NULL;
@@ -215,8 +227,6 @@ int main(int argc, char *argv[]){
     // char * tracepath = "./data/ictf2010_2mpacket_zipf.dat"
     // for pkt_puller and 3;
     char * tracepath = "./data/ictf2010_100kflow.dat";
-
-    int num_nfs = 1;
     
     int option;
     while((option = getopt(argc, argv, ":n:t:d:")) != -1){
