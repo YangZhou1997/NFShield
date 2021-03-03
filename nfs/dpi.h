@@ -56,6 +56,7 @@ int dpi_init(){
 #endif
 
     srand((unsigned)time(NULL));
+    printf("dpi init done\n");
     return 0;
 }
 

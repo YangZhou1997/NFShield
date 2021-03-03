@@ -80,6 +80,8 @@ void *send_pkt_func(void *arg) {
             if(force_quit_send[nf_idx])
 				break;
         }
+        barrier();
+
         burst_size = MAX_UNACK_WINDOW - unack_pkts[nf_idx];
         burst_size = MIN(burst_size, TEST_NPKTS + WARMUP_NPKTS - sent_pkts[nf_idx]);
 
@@ -104,7 +106,7 @@ void *send_pkt_func(void *arg) {
             warmup_end = 1; 
         }
         if((sent_pkts[nf_idx] / MAX_BATCH_SIZE) % (PRINT_INTERVAL / MAX_BATCH_SIZE) == 0){
-            printf("[send_pacekts %d] number of pkts sent: %u\n", nf_idx, sent_pkts[nf_idx]);
+            printf("[send_pacekts th%d] number of pkts     sent: %llu\n", nf_idx, sent_pkts[nf_idx]);
         }
 
        if(force_quit_send[nf_idx])
@@ -131,7 +133,7 @@ void *send_pkt_func(void *arg) {
     while(print_order != nf_idx || finished_nfs != num_nfs){
         sleep(1);
     }
-    printf("[send_pacekts %d]: %llu pkt sent, %.8lf Mpps\n", nf_idx, sent_pkts[nf_idx], (double)(sent_pkts[nf_idx]) * 1e-6 / time_taken);
+    printf("[send_pacekts th%d]: %llu pkt sent, %.8lf Mpps\n", nf_idx, sent_pkts[nf_idx], (double)(sent_pkts[nf_idx]) * 1e-6 / time_taken);
     barrier();
     print_order = nf_idx + 1;
     barrier();
@@ -151,6 +153,7 @@ void * recv_pkt_func(void *arg){
     // which nf's traffic this thread sends
     int nf_idx = *(int*)arg;
     set_affinity(nf_idx + num_nfs);
+    // set_affinity(nf_idx);
     init_socket(&sockfd, &send_sockaddr, &if_mac, dstmac, nf_idx);
 
     int recv_nf_idx = 0, numpkts = 0;
@@ -186,28 +189,31 @@ void * recv_pkt_func(void *arg){
             
             if(recv_nf_idx < 4)
                 __atomic_fetch_add(&received_pkts[recv_nf_idx], 1, __ATOMIC_SEQ_CST);
+            barrier();                
 
             if(nf_idx == recv_nf_idx){
                 uint32_t pkt_idx = tcph->recv_ack;
                 uint64_t curr_received_pkts = received_pkts[nf_idx];
                 uint32_t lost_pkts = pkt_idx + 1 - curr_received_pkts;
+                
                 // TODO: the packets might get re-ordered. 
-                printf("%lu, %llu\n", pkt_idx, curr_received_pkts);
+                // printf("%lu, %llu\n", pkt_idx, curr_received_pkts);
                 
                 // these packets are lost
-                if(lost_pkts != 0){
-                    __atomic_fetch_add(&received_pkts[nf_idx], lost_pkts, __ATOMIC_SEQ_CST);
-                }
+                // if(lost_pkts != 0){
+                //     __atomic_fetch_add(&received_pkts[nf_idx], lost_pkts, __ATOMIC_SEQ_CST);
+                // }
 
                 if(!warmup_end && pkt_idx >= WARMUP_NPKTS - 1)
                 {
             		warmup_end = 1;
                     lost_pkt_during_cold_start = lost_pkts; 
-                    printf("[recv_pacekts %d] warm up ends, lost_pkt_during_cold_start = %llu\n", nf_idx, lost_pkt_during_cold_start);
-            		printf("[recv_pacekts %d] pkt_idx %u, received_pkts[nf_idx] %llu\n", nf_idx, pkt_idx, curr_received_pkts);
+                    printf("[recv_pacekts th%d] warm up ends, lost_pkt_during_cold_start = %llu\n", nf_idx, lost_pkt_during_cold_start);
+            		printf("[recv_pacekts th%d] pkt_idx %u, received_pkts[nf_idx] %llu\n", nf_idx, pkt_idx, curr_received_pkts);
                 }
                 if(curr_received_pkts % PRINT_INTERVAL == 0){
-                    printf("[recv_pacekts %d] number of pkts received: %llu\n", nf_idx, curr_received_pkts);
+
+                    printf("[recv_pacekts th%d] number of pkts received: %llu\n", nf_idx, curr_received_pkts);
                 }
             }
         }

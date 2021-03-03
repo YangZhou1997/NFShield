@@ -52,6 +52,7 @@ make
 ```
 
 ## Start nftop in qemu with 4 NFs (cores)
+Make sure that you have 4 cores in your NF server. 
 ```
 bash run_qemu.sh 4
 >> root
@@ -59,6 +60,8 @@ cd NF-GEM5 && ./nftop -n lpm -n dpi -n monitoring -n acl_fw -d DE:AD:BE:EF:B7:90
 ```
 
 ## Start pktgen in another qemu with 8 cores
+Make sure that you have 8 cores in your pktgen server. When using less number of cores, the pktgen performance will decrease, and sometimes deadlock. 
+**In order to get correct performance number, you should wait utill all NFs init done.**
 ```
 bash run_qemu2.sh 8
 >> root
@@ -80,9 +83,12 @@ cd NF-GEM5 && ./pktgen -n 4 -d DE:AD:BE:EF:7F:45
 ./testRawNFRate_trace eth0 DE:AD:BE:EF:7F:45
 ```
 
-TODO: 
+## Notes
+There is still rare cases that pktgen deadlock happens (may be caused by packet reordering/drops in the network link) when using 8 cores -- TO BE FIXED. 
+When it happens, normally you just need to ctrl+c the pktgen, and rerun, then the deallock should disappear. 
+Okay, it turns out to be the memory ordering issue, adding barrier() fixes. -- no, it cannot fix
 
-Runtime parameter -- mac address. 
-Decide based on ether type or src mac address. 
+
+TODO: 
 cpu stats to measure the cpu utilization. -- test in VM
     not sure if kernel overhead is high?? 
