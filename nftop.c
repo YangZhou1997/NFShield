@@ -34,7 +34,8 @@ static struct ifreq if_mac;
 
 void *loop_func(void *arg){
     int nf_idx = *(int*)arg;
-
+    set_affinity(nf_idx);
+    
     int numpkts = 0;
     struct ether_hdr* eh;
     pkt_t* pkt_buf[MAX_BATCH_SIZE];

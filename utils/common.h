@@ -6,8 +6,9 @@
 extern "C" {
 /* *INDENT-ON* */
 #endif
-
 #include <stdint.h>
+#include <pthread.h>
+#include <sched.h>
 
 #define U32 0
 #define U16 1
@@ -52,6 +53,18 @@ typedef struct
 #define CMS_SH2 30169
 #define CMS_SH3 52757
 #define CMS_SH4 83233
+
+int set_affinity(uint32_t cpu_id){
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    CPU_SET(cpu_id, &cpuset);
+    pthread_t thread = pthread_self();
+    return pthread_setaffinity_np(thread, sizeof(cpuset), &cpuset);
+}
+
+inline void barrier(){
+    asm volatile("": : :"memory");
+}
 
 #ifdef	__cplusplus
 /* *INDENT-OFF* */
