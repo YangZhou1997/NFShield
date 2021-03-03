@@ -10,8 +10,6 @@
 #include "./nfs/nat-tcp-v4.h"
 #include "./utils/parsing_mac.h"
 
-uint8_t dstmac[6];
-
 int l2_fwd_init(){
     return 0;
 }
@@ -28,13 +26,15 @@ static int (*nf_init[7])();
 static void (*nf_process[7])(uint8_t *);
 static void (*nf_destroy[7])();
 
-static int sockfd  = 0;
-static struct sockaddr_ll send_sockaddr;
-static struct ifreq if_mac;
+static uint8_t dstmac[6];
+__thread int sockfd  = 0;
+__thread struct sockaddr_ll send_sockaddr;
+__thread struct ifreq if_mac;
 
 void *loop_func(void *arg){
     int nf_idx = *(int*)arg;
     set_affinity(nf_idx);
+    init_socket(&sockfd, &send_sockaddr, &if_mac, dstmac, nf_idx);
     
     int numpkts = 0;
     struct ether_hdr* eh;
@@ -58,31 +58,12 @@ void *loop_func(void *arg){
         for(int i = 0; i < numpkts; i++){
             nf_process[nf_idx](pkt_buf[i]->content);
             eh = (struct ether_hdr*) pkt_buf[i]->content;
-        
-            /* Ethernet header */
-            // @yang, the nf must have swapped the mac address;
-            // eh->d_addr.addr_bytes[0] = MY_DEST_MAC0;
-        	// eh->d_addr.addr_bytes[1] = MY_DEST_MAC1;
-        	// eh->d_addr.addr_bytes[2] = MY_DEST_MAC2;
-        	// eh->d_addr.addr_bytes[3] = MY_DEST_MAC3;
-        	// eh->d_addr.addr_bytes[4] = MY_DEST_MAC4;
-        	// eh->d_addr.addr_bytes[5] = eh->s_addr.addr_bytes[5];
-
-            // // @yang, you must set source mac correct in order to send it out. 
-            // eh->s_addr.addr_bytes[0] = ((uint8_t *)&if_mac.ifr_hwaddr.sa_data)[0];
-        	// eh->s_addr.addr_bytes[1] = ((uint8_t *)&if_mac.ifr_hwaddr.sa_data)[1];
-        	// eh->s_addr.addr_bytes[2] = ((uint8_t *)&if_mac.ifr_hwaddr.sa_data)[2];
-        	// eh->s_addr.addr_bytes[3] = ((uint8_t *)&if_mac.ifr_hwaddr.sa_data)[3];
-        	// eh->s_addr.addr_bytes[4] = ((uint8_t *)&if_mac.ifr_hwaddr.sa_data)[4];
-        	// eh->s_addr.addr_bytes[5] = ((uint8_t *)&if_mac.ifr_hwaddr.sa_data)[5];
-        	
-        	/* Ethertype field */
-        	// eh->ether_type = htons(ETH_P_IP);
         }
     
         sendto_batch(sockfd, numpkts, pkt_buf, &send_sockaddr);
     }
     nf_destroy[nf_idx]();
+	close(sockfd);
  
     for(int i = 0; i < MAX_BATCH_SIZE; i++){
         free(pkt_buf[i]->content);
@@ -183,8 +164,6 @@ int main(int argc, char* argv[]){
     }
     printf("\n");
     
-    init_socket(&sockfd, &send_sockaddr, &if_mac, dstmac);
-
     pthread_t threads[7];
     int nf_idx[7] = {0, 1, 2, 3, 4, 5, 6};
     for(int i = 0; i < num_nfs; i++){
