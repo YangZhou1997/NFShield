@@ -87,7 +87,7 @@ cd NF-GEM5 && ./pktgen -n 4 -d DE:AD:BE:EF:7F:45
 There is still rare cases that pktgen deadlock happens (may be caused by packet reordering/drops in the network link) when using 8 cores -- TO BE FIXED. 
 When it happens, normally you just need to ctrl+c the pktgen, and rerun, then the deallock should disappear. 
 Okay, it turns out to be the memory ordering issue, adding barrier() fixes. -- no, it cannot fix
-
+Okay, it seems using large MAX_UNACK_WINDOW can fix it. 
 
 TODO: 
 cpu stats to measure the cpu utilization. -- test in VM

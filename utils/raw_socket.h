@@ -23,6 +23,10 @@
 #define BUF_SIZ		1536
 #define MAX_BATCH_SIZE 32
 
+#define WARMUP_NPKTS (1*50*1024)
+#define TEST_NPKTS (2*50*1024)
+#define MAX_UNACK_WINDOW 512
+
 #define CUSTOM_PROTO_BASE 0x1234
 // #define CUSTOM_PROTO_BASE 0
 
@@ -74,13 +78,13 @@ void init_socket(int *sockfd_p, struct sockaddr_ll* send_sockaddr, struct ifreq 
 		close(sockfd);
         return;
 	}
-    uint32_t bufsize = 1024 * 200; // 200KB r/w buffer size for each sockets. 
-    if(setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, &bufsize, sizeof(bufsize)) == -1) {
-		printf("[recv_pacekts] SO_BINDTODEVICE");
-    }
-    if(setsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, &bufsize, sizeof(bufsize)) == -1) {
-		printf("[recv_pacekts] SO_BINDTODEVICE");
-    }
+    // uint32_t bufsize = 1024 * 200; // 200KB r/w buffer size for each sockets. 
+    // if(setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, &bufsize, sizeof(bufsize)) == -1) {
+	// 	printf("[recv_pacekts] SO_BINDTODEVICE");
+    // }
+    // if(setsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, &bufsize, sizeof(bufsize)) == -1) {
+	// 	printf("[recv_pacekts] SO_BINDTODEVICE");
+    // }
 
     // setup socket for sending packets. 
     struct ifreq if_idx;
@@ -133,6 +137,7 @@ int recvfrom_batch(int sockfd, int buff_size, pkt_t** pkt_buf){
     int cnt = 0;
     int numbytes = 0;
     while(cnt < MAX_BATCH_SIZE){
+        // once returned, this is guaranteed to return a full ethernet frame. 
         numbytes = recvfrom(sockfd, pkt_buf[cnt]->content, buff_size, MSG_DONTWAIT, NULL, NULL);
         if(numbytes <= 0){
             return cnt;
@@ -146,7 +151,14 @@ int recvfrom_batch(int sockfd, int buff_size, pkt_t** pkt_buf){
 int sendto_batch(int sockfd, int batch_size, pkt_t** pkt_buf, struct sockaddr_ll* send_sockaddr){
     int cnt = 0;
     while(cnt < batch_size){
-    	while (sendto(sockfd, pkt_buf[cnt]->content, pkt_buf[cnt]->len, 0, (struct sockaddr*)send_sockaddr, sizeof(struct sockaddr_ll)) < 0){}
+        uint32_t bytes, sent = 0;
+        do{
+            bytes = sendto(sockfd, pkt_buf[cnt]->content + sent, pkt_buf[cnt]->len - sent, 0, (struct sockaddr*)send_sockaddr, sizeof(struct sockaddr_ll));
+            if(bytes < 0){
+                continue;
+            }
+            sent += bytes;
+        }while(sent != pkt_buf[cnt]->len);
         cnt ++;
     }
     return cnt;

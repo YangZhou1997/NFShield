@@ -8,8 +8,9 @@ if [ -n "$1" ];then
         ip tuntap add $1 mode tap user `whoami`
         ip link set $1 up
         sleep 0.5s
-        # brctl addif $switch $1 (use ip link instead!)
         ip link set $1 master $switch
+        # brctl addif $switch $1 (use ip link instead!)
+        sudo ip link set $1 txqueuelen 10000
         exit 0
 else
         echo "Error: no interface specified"

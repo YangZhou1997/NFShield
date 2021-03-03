@@ -49,6 +49,7 @@ void *loop_func(void *arg){
         exit(0);
     }
 
+    struct timeval start, end; 
     uint64_t pkt_size_sum = 0;
     uint32_t pkt_num = 0;
     while(1){
@@ -65,6 +66,19 @@ void *loop_func(void *arg){
             pkt_num ++;
             if(pkt_num % PRINT_INTERVAL == 0){
                 printf("%-12s (nf_idx %u): pkt_cnt %u, avg_pkt_size %lf\n", nf_names[nf_idx], nf_idx, pkt_num, pkt_size_sum * 1.0 / pkt_num);
+            }
+            if(pkt_num == WARMUP_NPKTS){
+                gettimeofday(&start, NULL);
+            }
+            else if(pkt_num == WARMUP_NPKTS + TEST_NPKTS - MAX_UNACK_WINDOW){
+                gettimeofday(&end, NULL);
+                double time_taken; 
+                time_taken = (end.tv_sec - start.tv_sec) * 1e6; 
+                time_taken = time_taken + (end.tv_usec - start.tv_usec);
+                printf("%-12s (nf_idx %u): processed pkts %u, elapsed time (us) %lf, processing rate %.8lf Mpps\n", 
+                    nf_names[nf_idx], nf_idx, TEST_NPKTS - MAX_UNACK_WINDOW, time_taken, (double)(TEST_NPKTS - MAX_UNACK_WINDOW)/time_taken);
+                pkt_num = 0;
+                pkt_size_sum = 0;
             }
         }
         sendto_batch(sockfd, numpkts, pkt_buf, &send_sockaddr);

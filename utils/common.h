@@ -66,6 +66,13 @@ inline void barrier(){
     asm volatile("": : :"memory");
 }
 
+// only work on X86
+inline uint64_t rdtsc(){
+	uint32_t a, d;
+	asm volatile("rdtsc" : "=a" (a), "=d" (d));
+	return ((uint64_t)a) | (((uint64_t)d) << 32);
+}
+
 #ifdef	__cplusplus
 /* *INDENT-OFF* */
 }
