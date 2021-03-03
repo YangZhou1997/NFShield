@@ -1,6 +1,7 @@
 # !/bin/bash
-sudo ip link add br0 type bridge ; sudo ifconfig br0 up
 source ./riscv_build_env.sh
+make clean && make -j
+sudo ip link add br0 type bridge ; sudo ifconfig br0 up ; sleep 0.5s ; sudo ip link set br0 txqueuelen 10000
 # cp -r ~/NF-GEM5/ ~/riscv-buildroot/output/target/root/
 rsync -rv --exclude=.git --max-size=500m ~/NF-GEM5/ ~/riscv-buildroot/output/target/root/NF-GEM5
 cd ~/riscv-buildroot/

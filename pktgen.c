@@ -22,16 +22,12 @@
 
 #define MIN(x, y) (x < y ? x : y)
 
-#define MAX_UNACK_WINDOW 128
 static volatile uint64_t unack_pkts[4] = {0,0,0,0};
 static volatile uint64_t sent_pkts[4] = {0,0,0,0};
 static volatile uint64_t received_pkts[4] = {0,0,0,0};
 
 static volatile uint8_t force_quit_send[4];
 static volatile uint8_t force_quit_recv[4];
-
-#define WARMUP_NPKTS (1*50*1024)
-#define TEST_NPKTS (2*50*1024)
 
 static uint8_t dstmac[6];
 __thread int sockfd  = 0;
@@ -189,7 +185,7 @@ void * recv_pkt_func(void *arg){
             
             if(recv_nf_idx < 4)
                 __atomic_fetch_add(&received_pkts[recv_nf_idx], 1, __ATOMIC_SEQ_CST);
-            barrier();                
+            barrier();
 
             if(nf_idx == recv_nf_idx){
                 uint32_t pkt_idx = tcph->recv_ack;
