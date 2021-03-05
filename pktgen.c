@@ -20,7 +20,7 @@
 #include "./utils/raw_socket.h"
 #include "./utils/parsing_mac.h"
 
-#define MIN(x, y) (x < y ? x : y)
+#define MAX_WAITING_CYCLES 2999538 // this is from empirical tests 
 
 static volatile uint64_t unack_pkts[4] = {0,0,0,0};
 static volatile uint64_t sent_pkts[4] = {0,0,0,0};
@@ -71,15 +71,25 @@ void *send_pkt_func(void *arg) {
     uint8_t warmup_end = 0;
     gettimeofday(&start, NULL);
 
-    while(sent_pkts[nf_idx] < TEST_NPKTS + WARMUP_NPKTS){
+    // uint32_t max_waiting_cycles = 0;
+    uint32_t waiting_cycles = 0;
+    while(sent_pkts[nf_idx] < TEST_NPKTS*2 + WARMUP_NPKTS){
         while(sent_pkts[nf_idx] >= received_pkts[nf_idx] && (unack_pkts[nf_idx] = sent_pkts[nf_idx] - received_pkts[nf_idx]) >= MAX_UNACK_WINDOW){
+            // ad-hoc solution to break deadlock caused by packet loss -- should rarely happen
+            waiting_cycles ++;
+            if(waiting_cycles > MAX_WAITING_CYCLES){
+                sent_pkts[nf_idx] = received_pkts[nf_idx];
+                printf("[send_pacekts th%d]: deadlock detected (caused by packet loss or NF initing), forcely resolving...\n", nf_idx);
+            }
             if(force_quit_send[nf_idx])
 				break;
         }
+        // max_waiting_cycles = MAX(max_waiting_cycles, waiting_cycles);
+        waiting_cycles = 0;
         barrier();
 
         burst_size = MAX_UNACK_WINDOW - unack_pkts[nf_idx];
-        burst_size = MIN(burst_size, TEST_NPKTS + WARMUP_NPKTS - sent_pkts[nf_idx]);
+        burst_size = MIN(burst_size, TEST_NPKTS*2 + WARMUP_NPKTS - sent_pkts[nf_idx]);
 
         for(int i = 0; i < burst_size; i++){
             pkt_buf[i] = next_pkt(nf_idx);
@@ -130,9 +140,9 @@ void *send_pkt_func(void *arg) {
         sleep(1);
     }
     printf("[send_pacekts th%d]: %llu pkt sent, %.8lf Mpps\n", nf_idx, sent_pkts[nf_idx], (double)(sent_pkts[nf_idx]) * 1e-6 / time_taken);
+    // printf("max_waiting_cycles = %u\n", max_waiting_cycles);
     barrier();
     print_order = nf_idx + 1;
-    barrier();
    
     while(print_order != num_nfs){
         sleep(1);
@@ -182,7 +192,6 @@ void * recv_pkt_func(void *arg){
                 __atomic_fetch_add(&invalid_pkts, 1, __ATOMIC_SEQ_CST);
                 continue;
             }
-            
             if(recv_nf_idx < 4)
                 __atomic_fetch_add(&received_pkts[recv_nf_idx], 1, __ATOMIC_SEQ_CST);
             barrier();
@@ -191,7 +200,7 @@ void * recv_pkt_func(void *arg){
                 uint32_t pkt_idx = tcph->recv_ack;
                 uint64_t curr_received_pkts = received_pkts[nf_idx];
                 uint32_t lost_pkts = pkt_idx + 1 - curr_received_pkts;
-                
+
                 // TODO: the packets might get re-ordered. 
                 // printf("%lu, %llu\n", pkt_idx, curr_received_pkts);
                 
@@ -211,10 +220,16 @@ void * recv_pkt_func(void *arg){
 
                     printf("[recv_pacekts th%d] number of pkts received: %llu\n", nf_idx, curr_received_pkts);
                 }
+                if(tcph->recv_ack == 0xFFFFFFFF){
+                    goto finished;
+                }
             }
         }
     }
+finished:
 	close(sockfd);
+    force_quit_send[nf_idx] = 1;
+    force_quit_recv[nf_idx] = 1;
 
     for(int i = 0; i < MAX_BATCH_SIZE; i++){
         free(pkt_buf[i]->content);
