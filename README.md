@@ -58,6 +58,7 @@ bash run_qemu.sh 4
 >> root
 cd NF-GEM5 && ./nftop -n lpm -n dpi -n monitoring -n acl_fw -d DE:AD:BE:EF:B7:90
 ```
+It might be possible that you nftop triggers gegmentation fault when exiting; but do not worry, it should be glibc bug when calling pthread_join() (https://sourceware.org/bugzilla/show_bug.cgi?id=20116)
 
 ## Start pktgen in another qemu with 8 cores
 Make sure that you have 8 cores in your pktgen server. When using less number of cores, the pktgen performance will decrease, and sometimes deadlock. 
@@ -67,6 +68,7 @@ bash run_qemu2.sh 8
 >> root
 cd NF-GEM5 && ./pktgen -n 4 -d DE:AD:BE:EF:7F:45
 ```
+
 
 ## Testing raw socket sending rate (64B)
 ```
@@ -88,6 +90,7 @@ There is still rare cases that pktgen deadlock happens (may be caused by packet 
 When it happens, normally you just need to ctrl+c the pktgen, and rerun, then the deallock should disappear. 
 Okay, it turns out to be the memory ordering issue, adding barrier() fixes. -- no, it cannot fix
 Okay, it seems using large MAX_UNACK_WINDOW can fix it. 
+Finally, forcely resolve it. 
 
 TODO: 
 cpu stats to measure the cpu utilization. -- test in VM
