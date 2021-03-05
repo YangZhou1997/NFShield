@@ -18,6 +18,8 @@ extern "C" {
 #define PRINT_INTERVAL (10 * 1024)
 // #define PRINT_INTERVAL (1)
 
+#define MAX(x, y) (x > y ? x : y)
+#define MIN(x, y) (x < y ? x : y)
 
 #ifdef CAVIUM_PLATFORM
 #include "cvmx.h"

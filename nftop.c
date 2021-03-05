@@ -31,6 +31,9 @@ __thread int sockfd  = 0;
 __thread struct sockaddr_ll send_sockaddr;
 __thread struct ifreq if_mac;
 
+static int num_nfs = 0;
+static volatile uint8_t print_order = 0;
+
 void *loop_func(void *arg){
     int nf_idx = *(int*)arg;
     set_affinity(nf_idx);
@@ -70,19 +73,25 @@ void *loop_func(void *arg){
             if(pkt_num == WARMUP_NPKTS){
                 gettimeofday(&start, NULL);
             }
-            else if(pkt_num == WARMUP_NPKTS + TEST_NPKTS - MAX_UNACK_WINDOW){
+            else if(pkt_num >= WARMUP_NPKTS + TEST_NPKTS){
                 gettimeofday(&end, NULL);
                 double time_taken; 
                 time_taken = (end.tv_sec - start.tv_sec) * 1e6; 
                 time_taken = time_taken + (end.tv_usec - start.tv_usec);
                 printf("%-12s (nf_idx %u): processed pkts %u, elapsed time (us) %lf, processing rate %.8lf Mpps\n", 
-                    nf_names[nf_idx], nf_idx, TEST_NPKTS - MAX_UNACK_WINDOW, time_taken, (double)(TEST_NPKTS - MAX_UNACK_WINDOW)/time_taken);
-                pkt_num = 0;
-                pkt_size_sum = 0;
+                    nf_names[nf_idx], nf_idx, TEST_NPKTS, time_taken, (double)(TEST_NPKTS)/time_taken);
+                // stopping the pktgen. 
+                struct tcp_hdr * tcph = (struct tcp_hdr *) (pkt_buf[i]->content + sizeof(struct ipv4_hdr) + sizeof(struct ether_hdr));
+                tcph->recv_ack = 0xFFFFFFFF;
+                goto finished;
+                // pkt_num = 0;
+                // pkt_size_sum = 0;
             }
         }
         sendto_batch(sockfd, numpkts, pkt_buf, &send_sockaddr);
     }
+finished:
+    sendto_batch(sockfd, numpkts, pkt_buf, &send_sockaddr);
     nf_destroy[nf_idx]();
 	close(sockfd);
  
@@ -90,13 +99,16 @@ void *loop_func(void *arg){
         free(pkt_buf[i]->content);
         free(pkt_buf[i]);
     }
-    return NULL;
+
+    print_order ++;
+    // this is used to bypass glibc bugs when calling pthread_join() (https://sourceware.org/bugzilla/show_bug.cgi?id=20116)
+    while(print_order != num_nfs){
+        sleep(1);
+    }
+    exit(0);
 }
 
 int main(int argc, char* argv[]){
-    int num_nfs = 0;
-
-
     nf_process[0] = l2_fwd;
     nf_process[1] = acl_fw;
     nf_process[2] = dpi;
