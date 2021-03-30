@@ -3,42 +3,37 @@
 
 #include "../utils/common.h"
 #include "../utils/pkt-ops.h"
-// #define VALUE_TYPE U32
-#define TYPE uint32_t
-#define TYPE_STR U32
-#define TYPED_NAME(x) u32_##x
-#include "../utils/dleft-hash.h"
-#undef TYPE
-#undef TYPE_STR
-#undef TYPED_NAME
-#include "../utils/pkt-puller.h"
 
-#define HT_SIZE_MON (0.5 * 1024 * 1024)
-static u32_dleft_meta_t ht_meta_monitor;
-static uint32_t pkt_cnt_monitor = 0;
+static uint32_t pkt_cnt_mem_test = 0;
+static uint32_t total_bytes = 2*1024*1024;
+static uint32_t access_bytes_per_pkt = 1024;
 
-int monitoring_init(){
-    if(-1 == u32_dleft_init("monitoring", HT_SIZE_MON, &ht_meta_monitor))
+static uint8_t* array = NULL;
+
+int mem_test_init(){
+    array = (uint8_t*)malloc(total_bytes);
+    if(!array)
     {
         printf("bootmemory allocation error\n");
         return 0;
     }
     srand((unsigned)time(NULL));
-    printf("monitoring init done\n");
+    printf("mem_test init done\n");
     return 0;
 }
-void monitoring(uint8_t *pkt_ptr){
+void mem_test(uint8_t *pkt_ptr){
     swap_mac_addr(pkt_ptr);
 
-    five_tuple_t flow;
-    get_five_tuple(pkt_ptr, &flow);
-    u32_dleft_add_value(&ht_meta_monitor, flow, 1);
+    uint32_t start = rand() % (total_bytes - access_bytes_per_pkt);
+    for(uint32_t i = start; i < start + access_bytes_per_pkt - sizeof(uint32_t); i += sizeof(uint32_t)){
+        *(uint32_t*)(array + i) += 1;
+    }
 
-    pkt_cnt_monitor ++;
-    // if(pkt_cnt_monitor % PRINT_INTERVAL == 0) {
-    //     printf("monitoring %u\n", pkt_cnt_monitor);
+    pkt_cnt_mem_test ++;
+    // if(pkt_cnt_mem_test % PRINT_INTERVAL == 0) {
+    //     printf("mem_test %u\n", pkt_cnt_mem_test);
     // }
 }
-void monitoring_destroy(){
-    u32_dleft_destroy(&ht_meta_monitor);
+void mem_test_destroy(){
+    free(array);
 }
