@@ -58,7 +58,14 @@ bash run_qemu.sh 4
 >> root
 cd NF-GEM5 && ./nftop -n lpm -n dpi -n monitoring -n acl_fw -d DE:AD:BE:EF:B7:90
 ```
-It might be possible that you nftop triggers gegmentation fault when exiting; but do not worry, it should be glibc bug when calling pthread_join() (https://sourceware.org/bugzilla/show_bug.cgi?id=20116)
+It might be possible that you nftop triggers segmentation fault when exiting; but do not worry, it should be glibc bug when calling pthread_join() (https://sourceware.org/bugzilla/show_bug.cgi?id=20116)
+
+You can run mem_test as following: 
+```
+cd NF-GEM5 && ./nftop -n lpm -n dpi -n monitoring -n mem_test -t 4000000 -p 10240 -d DE:AD:BE:EF:B7:90
+```
+where in mem_test, for each packet, it will randomly access 10240 (*-p*) continuous bytes in a 4000000-bytes (*-t*) array. 
+Here "random access" means reading the 4-bytes integer, increment it by one, and write it back. You can check more details in [mem_test()](./nfs/mem-test.h). 
 
 ## Start pktgen in another qemu with 8 cores
 Make sure that you have 8 cores in your pktgen server. When using less number of cores, the pktgen performance will decrease, and sometimes deadlock. 

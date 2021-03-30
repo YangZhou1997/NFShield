@@ -78,5 +78,6 @@ void dpi(uint8_t *pkt_ptr){
 
 void dpi_destroy(){
     printf("match_total_dpi: %u\n", match_total_dpi);
-    acsmFree2(acsm);
+    // TODO: ac2 free has some error. 
+    // acsmFree2(acsm);
 }
