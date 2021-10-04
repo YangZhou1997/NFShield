@@ -10,6 +10,7 @@
 #include <signal.h>
 #include <sys/time.h> 
 #include <unistd.h>
+#include <stdatomic.h>
 
 #include "./utils/common.h"
 #include "./utils/pkt-ops.h"
@@ -22,20 +23,21 @@
 
 #define MAX_WAITING_CYCLES 2999538 // this is from empirical tests 
 
-static volatile uint64_t unack_pkts[4] = {0,0,0,0};
-static volatile uint64_t sent_pkts[4] = {0,0,0,0};
-static volatile uint64_t received_pkts[4] = {0,0,0,0};
+static atomic_ullong unack_pkts[4] = {0,0,0,0};
+static atomic_ullong sent_pkts[4] = {0,0,0,0};
+static atomic_ullong received_pkts[4] = {0,0,0,0};
+static atomic_ullong lost_pkts[4] = {0,0,0,0};
 
-static volatile uint8_t force_quit_send[4];
-static volatile uint8_t force_quit_recv[4];
+static atomic_uchar force_quit_send[4];
+static atomic_uchar force_quit_recv[4];
 
 static uint8_t dstmac[6];
 __thread int sockfd  = 0;
 __thread struct sockaddr_ll send_sockaddr;
 __thread struct ifreq if_mac;
 
-static volatile uint8_t print_order = 0;
-static volatile uint32_t finished_nfs = 0;
+static atomic_uchar print_order = 0;
+static atomic_uchar finished_nfs = 0;
 int num_nfs = 1;
 
 void *send_pkt_func(void *arg) {
@@ -78,6 +80,7 @@ void *send_pkt_func(void *arg) {
             // ad-hoc solution to break deadlock caused by packet loss -- should rarely happen
             waiting_cycles ++;
             if(waiting_cycles > MAX_WAITING_CYCLES){
+                lost_pkts[nf_idx] += sent_pkts[nf_idx] - received_pkts[nf_idx];
                 sent_pkts[nf_idx] = received_pkts[nf_idx];
                 printf("[send_pacekts th%d]: deadlock detected (caused by packet loss or NF initing), forcely resolving...\n", nf_idx);
             }
@@ -86,7 +89,6 @@ void *send_pkt_func(void *arg) {
         }
         // max_waiting_cycles = MAX(max_waiting_cycles, waiting_cycles);
         waiting_cycles = 0;
-        barrier();
 
         burst_size = MAX_UNACK_WINDOW - unack_pkts[nf_idx];
         burst_size = MIN(burst_size, TEST_NPKTS*2 + WARMUP_NPKTS - sent_pkts[nf_idx]);
@@ -103,16 +105,14 @@ void *send_pkt_func(void *arg) {
         }
 
         sendto_batch(sockfd, burst_size, pkt_buf, &send_sockaddr);
-
-        __atomic_fetch_add(&sent_pkts[nf_idx], burst_size, __ATOMIC_SEQ_CST);
-        // sent_pkts[nf_idx] += burst_size;
+        sent_pkts[nf_idx] += burst_size;
 
         if(!warmup_end && sent_pkts[nf_idx] >= WARMUP_NPKTS){
             gettimeofday(&start, NULL);
             warmup_end = 1; 
         }
         if((sent_pkts[nf_idx] / MAX_BATCH_SIZE) % (PRINT_INTERVAL / MAX_BATCH_SIZE) == 0){
-            printf("[send_pacekts th%d] number of pkts     sent: %llu\n", nf_idx, sent_pkts[nf_idx]);
+            printf("[send_pacekts th%d]:     pkts sent: %llu, unacked pkts: %llu, potentially lost pkts: %llu\n", nf_idx, sent_pkts[nf_idx], unack_pkts[nf_idx], lost_pkts[nf_idx]);
         }
 
        if(force_quit_send[nf_idx])
@@ -120,7 +120,6 @@ void *send_pkt_func(void *arg) {
     }
     gettimeofday(&end, NULL); 
     if(warmup_end){
-        // __atomic_fetch_add(&sent_pkts[nf_idx], -WARMUP_NPKTS, __ATOMIC_SEQ_CST);
         sent_pkts[nf_idx] -= WARMUP_NPKTS;
     }
     double time_taken; 
@@ -134,14 +133,13 @@ void *send_pkt_func(void *arg) {
     // ending all packet receiving. 
     force_quit_recv[nf_idx] = 1;
 
-    __atomic_fetch_add(&finished_nfs, 1, __ATOMIC_SEQ_CST);
+    finished_nfs++;
 
     while(print_order != nf_idx || finished_nfs != num_nfs){
         sleep(1);
     }
-    printf("[send_pacekts th%d]: %llu pkt sent, %.8lf Mpps\n", nf_idx, sent_pkts[nf_idx], (double)(sent_pkts[nf_idx]) * 1e-6 / time_taken);
+    printf("[send_pacekts th%d]:     pkts sent: %llu, unacked pkts: %4llu, potentially lost pkts: %4llu, %.8lf Mpps\n", nf_idx, sent_pkts[nf_idx], unack_pkts[nf_idx], lost_pkts[nf_idx], (double)(sent_pkts[nf_idx]) * 1e-6 / time_taken);
     // printf("max_waiting_cycles = %u\n", max_waiting_cycles);
-    barrier();
     print_order = nf_idx + 1;
    
     while(print_order != num_nfs){
@@ -154,7 +152,7 @@ void *send_pkt_func(void *arg) {
     // pthread_exit(NULL);
 }
 
-static volatile uint64_t invalid_pkts = 0;
+static atomic_ullong invalid_pkts = 0;
 void * recv_pkt_func(void *arg){
     // which nf's traffic this thread sends
     int nf_idx = *(int*)arg;
@@ -189,12 +187,11 @@ void * recv_pkt_func(void *arg){
 
             if(tcph->sent_seq != 0xdeadbeef){
                 curr_invalid_pkts ++;
-                __atomic_fetch_add(&invalid_pkts, 1, __ATOMIC_SEQ_CST);
+                invalid_pkts ++;
                 continue;
             }
             if(recv_nf_idx < 4)
-                __atomic_fetch_add(&received_pkts[recv_nf_idx], 1, __ATOMIC_SEQ_CST);
-            barrier();
+                received_pkts[recv_nf_idx] ++;
 
             if(nf_idx == recv_nf_idx){
                 uint32_t pkt_idx = tcph->recv_ack;
@@ -206,19 +203,18 @@ void * recv_pkt_func(void *arg){
                 
                 // these packets are lost
                 // if(lost_pkts != 0){
-                //     __atomic_fetch_add(&received_pkts[nf_idx], lost_pkts, __ATOMIC_SEQ_CST);
+                //     received_pkts[nf_idx] += lost_pkts
                 // }
 
                 if(!warmup_end && pkt_idx >= WARMUP_NPKTS - 1)
                 {
             		warmup_end = 1;
                     lost_pkt_during_cold_start = lost_pkts; 
-                    printf("[recv_pacekts th%d] warm up ends, lost_pkt_during_cold_start = %llu\n", nf_idx, lost_pkt_during_cold_start);
-            		printf("[recv_pacekts th%d] pkt_idx %u, received_pkts[nf_idx] %llu\n", nf_idx, pkt_idx, curr_received_pkts);
+                    printf("[recv_pacekts th%d]: warm up ends, lost_pkt_during_cold_start = %llu\n", nf_idx, lost_pkt_during_cold_start);
+            		// printf("[recv_pacekts th%d] pkt_idx in latest packet %u, received_pkts[nf_idx] %llu\n", nf_idx, pkt_idx, curr_received_pkts);
                 }
                 if(curr_received_pkts % PRINT_INTERVAL == 0){
-
-                    printf("[recv_pacekts th%d] number of pkts received: %llu\n", nf_idx, curr_received_pkts);
+                    printf("[recv_pacekts th%d]: pkts received: %llu\n", nf_idx, curr_received_pkts);
                 }
                 if(tcph->recv_ack == 0xFFFFFFFF){
                     goto finished;

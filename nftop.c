@@ -10,6 +10,7 @@
 #include "./nfs/nat-tcp-v4.h"
 #include "./nfs/mem-test.h"
 #include "./utils/parsing_mac.h"
+#include <stdatomic.h>
 
 int l2_fwd_init(){
     return 0;
@@ -33,7 +34,7 @@ __thread struct sockaddr_ll send_sockaddr;
 __thread struct ifreq if_mac;
 
 static int num_nfs = 0;
-static volatile uint8_t print_order = 0;
+static atomic_uchar print_order = 0;
 
 void *loop_func(void *arg){
     int nf_idx = *(int*)arg;
@@ -69,7 +70,7 @@ void *loop_func(void *arg){
             pkt_size_sum += pkt_buf[i]->len;
             pkt_num ++;
             if(pkt_num % PRINT_INTERVAL == 0){
-                printf("%-12s (nf_idx %u): pkt_cnt %u, avg_pkt_size %lf\n", nf_names[nf_idx], nf_idx, pkt_num, pkt_size_sum * 1.0 / pkt_num);
+                printf("%-12s (nf_idx %u): pkts received %u, avg_pkt_size %lf\n", nf_names[nf_idx], nf_idx, pkt_num, pkt_size_sum * 1.0 / pkt_num);
             }
             if(pkt_num == WARMUP_NPKTS){
                 gettimeofday(&start, NULL);
@@ -85,8 +86,6 @@ void *loop_func(void *arg){
                 struct tcp_hdr * tcph = (struct tcp_hdr *) (pkt_buf[i]->content + sizeof(struct ipv4_hdr) + sizeof(struct ether_hdr));
                 tcph->recv_ack = 0xFFFFFFFF;
                 goto finished;
-                // pkt_num = 0;
-                // pkt_size_sum = 0;
             }
         }
         sendto_batch(sockfd, numpkts, pkt_buf, &send_sockaddr);
