@@ -28,8 +28,7 @@ static atomic_ullong sent_pkts[4] = {0,0,0,0};
 static atomic_ullong received_pkts[4] = {0,0,0,0};
 static atomic_ullong lost_pkts[4] = {0,0,0,0};
 
-static atomic_uchar force_quit_send[4];
-static atomic_uchar force_quit_recv[4];
+static atomic_uchar force_quit[4];
 
 static uint8_t dstmac[6];
 __thread int sockfd  = 0;
@@ -38,14 +37,71 @@ __thread struct ifreq if_mac;
 
 static atomic_uchar print_order = 0;
 static atomic_uchar finished_nfs = 0;
+static atomic_ullong invalid_pkts = 0;
 int num_nfs = 1;
+
+__thread pkt_t* pkt_buf_recv[MAX_BATCH_SIZE];
+__thread uint8_t warmup_end_recv = 0;
+__thread uint64_t lost_pkt_during_cold_start;
+
+void try_recv_pkt(int nf_idx){
+    // try to receive a batch of packets. This call is non-blocking
+    int numpkts_recv = recvfrom_batch(sockfd, BUF_SIZ, pkt_buf_recv);
+    if(numpkts_recv <= 0){
+        return;
+    }
+    for(int i = 0; i < numpkts_recv; i++){
+    	struct ether_hdr *eh_recv = (struct ether_hdr *) pkt_buf_recv[i]->content;
+    	struct tcp_hdr * tcph_recv = (struct tcp_hdr *) (pkt_buf_recv[i]->content + sizeof(struct ipv4_hdr) + sizeof(struct ether_hdr));
+        int recv_nf_idx = (int)htons((eh_recv->ether_type)) - CUSTOM_PROTO_BASE;
+
+        // printf("[recv_pacekts %d] recv_nf_idx = %d, tcph->sent_seq = %x\n", nf_idx, recv_nf_idx, tcph->sent_seq);
+
+        if(tcph_recv->sent_seq != 0xdeadbeef){
+            invalid_pkts ++;
+            continue;
+        }
+        if(recv_nf_idx < 4)
+            received_pkts[recv_nf_idx] ++;
+
+        if(nf_idx == recv_nf_idx){
+            uint32_t pkt_idx = tcph_recv->recv_ack;
+            uint64_t curr_received_pkts = received_pkts[nf_idx];
+            uint32_t lost_pkts = pkt_idx + 1 - curr_received_pkts;
+
+            // TODO: the packets might get re-ordered. 
+            // printf("%lu, %llu\n", pkt_idx, curr_received_pkts);
+            
+            // these packets are lost
+            // if(lost_pkts != 0){
+            //     received_pkts[nf_idx] += lost_pkts
+            // }
+
+            if(!warmup_end_recv && pkt_idx >= WARMUP_NPKTS - 1)
+            {
+        		warmup_end_recv = 1;
+                lost_pkt_during_cold_start = lost_pkts; 
+                printf("[recv_pacekts th%d]: warm up ends, lost_pkt_during_cold_start = %llu\n", nf_idx, lost_pkt_during_cold_start);
+        		// printf("[recv_pacekts th%d] pkt_idx in latest packet %u, received_pkts[nf_idx] %llu\n", nf_idx, pkt_idx, curr_received_pkts);
+            }
+            if(curr_received_pkts % PRINT_INTERVAL == 0){
+                printf("[recv_pacekts th%d]: pkts received: %llu\n", nf_idx, curr_received_pkts);
+            }
+
+            if(tcph_recv->recv_ack == 0xFFFFFFFF){
+                return;
+            }
+        }
+    }
+}
 
 void *send_pkt_func(void *arg) {
 	// which nf's traffic this thread sends
     int nf_idx = *(int*)arg;
     set_affinity(nf_idx);
     init_socket(&sockfd, &send_sockaddr, &if_mac, dstmac, nf_idx);
-        
+
+    // sending-related variables        
     struct ether_hdr* eh;
     for(int i = 0; i < PKT_NUM; i++){
         eh = (struct ether_hdr*) pkts[i].content;
@@ -71,12 +127,20 @@ void *send_pkt_func(void *arg) {
     uint64_t burst_size;
     struct tcp_hdr *tcph;
     uint8_t warmup_end = 0;
+
+    // receiving-related variables
+    for(int i = 0; i < MAX_BATCH_SIZE; i++){
+        pkt_buf_recv[i] = malloc(sizeof(pkt_t));
+        pkt_buf_recv[i]->content = malloc(BUF_SIZ);
+    }
+
     gettimeofday(&start, NULL);
 
     // uint32_t max_waiting_cycles = 0;
     uint32_t waiting_cycles = 0;
-    while(sent_pkts[nf_idx] < TEST_NPKTS*2 + WARMUP_NPKTS){
+    while(sent_pkts[nf_idx] < TEST_NPKTS + WARMUP_NPKTS){
         while(sent_pkts[nf_idx] >= received_pkts[nf_idx] && (unack_pkts[nf_idx] = sent_pkts[nf_idx] - received_pkts[nf_idx]) >= MAX_UNACK_WINDOW){
+            try_recv_pkt(nf_idx);
             // ad-hoc solution to break deadlock caused by packet loss -- should rarely happen
             waiting_cycles ++;
             if(waiting_cycles > MAX_WAITING_CYCLES){
@@ -84,14 +148,14 @@ void *send_pkt_func(void *arg) {
                 sent_pkts[nf_idx] = received_pkts[nf_idx];
                 printf("[send_pacekts th%d]: deadlock detected (caused by packet loss or NF initing), forcely resolving...\n", nf_idx);
             }
-            if(force_quit_send[nf_idx])
+            if(force_quit[nf_idx])
 				break;
         }
         // max_waiting_cycles = MAX(max_waiting_cycles, waiting_cycles);
         waiting_cycles = 0;
 
         burst_size = MAX_UNACK_WINDOW - unack_pkts[nf_idx];
-        burst_size = MIN(burst_size, TEST_NPKTS*2 + WARMUP_NPKTS - sent_pkts[nf_idx]);
+        burst_size = MIN(burst_size, TEST_NPKTS + WARMUP_NPKTS - sent_pkts[nf_idx]);
 
         for(int i = 0; i < burst_size; i++){
             pkt_buf[i] = next_pkt(nf_idx);
@@ -107,6 +171,8 @@ void *send_pkt_func(void *arg) {
         sendto_batch(sockfd, burst_size, pkt_buf, &send_sockaddr);
         sent_pkts[nf_idx] += burst_size;
 
+        try_recv_pkt(nf_idx);
+
         if(!warmup_end && sent_pkts[nf_idx] >= WARMUP_NPKTS){
             gettimeofday(&start, NULL);
             warmup_end = 1; 
@@ -115,7 +181,7 @@ void *send_pkt_func(void *arg) {
             printf("[send_pacekts th%d]:     pkts sent: %llu, unacked pkts: %llu, potentially lost pkts: %llu\n", nf_idx, sent_pkts[nf_idx], unack_pkts[nf_idx], lost_pkts[nf_idx]);
         }
 
-       if(force_quit_send[nf_idx])
+       if(force_quit[nf_idx])
 			break;
     }
     gettimeofday(&end, NULL); 
@@ -127,14 +193,13 @@ void *send_pkt_func(void *arg) {
     time_taken = (time_taken + (end.tv_usec - start.tv_usec)) * 1e-6;
 
 	close(sockfd);
-    // commenting force_quit, so that we let each NF process the same number of packets. 
-    // ending all packet sending.
-    force_quit_send[nf_idx] = 1;
-    // ending all packet receiving. 
-    force_quit_recv[nf_idx] = 1;
+
+    for(int i = 0; i < MAX_BATCH_SIZE; i++){
+        free(pkt_buf_recv[i]->content);
+        free(pkt_buf_recv[i]);
+    }
 
     finished_nfs++;
-
     while(print_order != nf_idx || finished_nfs != num_nfs){
         sleep(1);
     }
@@ -152,103 +217,13 @@ void *send_pkt_func(void *arg) {
     // pthread_exit(NULL);
 }
 
-static atomic_ullong invalid_pkts = 0;
-void * recv_pkt_func(void *arg){
-    // which nf's traffic this thread sends
-    int nf_idx = *(int*)arg;
-    set_affinity(nf_idx + num_nfs);
-    // set_affinity(nf_idx);
-    init_socket(&sockfd, &send_sockaddr, &if_mac, dstmac, nf_idx);
-
-    int recv_nf_idx = 0, numpkts = 0;
-    struct ether_hdr *eh;
-    struct tcp_hdr *tcph;
-
-    pkt_t* pkt_buf[MAX_BATCH_SIZE];
-    for(int i = 0; i < MAX_BATCH_SIZE; i++){
-        pkt_buf[i] = malloc(sizeof(pkt_t));
-        pkt_buf[i]->content = malloc(BUF_SIZ);
-    }
-    uint8_t warmup_end = 0;
-    uint64_t lost_pkt_during_cold_start;
-    uint64_t curr_invalid_pkts = 0;
-	while(!force_quit_recv[nf_idx]){
-        numpkts = recvfrom_batch(sockfd, BUF_SIZ, pkt_buf);
-        if(numpkts <= 0){
-            continue;
-        }
-        curr_invalid_pkts = 0;
-        for(int i = 0; i < numpkts; i++){
-        	eh = (struct ether_hdr *) pkt_buf[i]->content;
-        	tcph = (struct tcp_hdr *) (pkt_buf[i]->content + sizeof(struct ipv4_hdr) + sizeof(struct ether_hdr));
-            recv_nf_idx = (int)htons((eh->ether_type)) - CUSTOM_PROTO_BASE;
-
-            // printf("[recv_pacekts %d] recv_nf_idx = %d, tcph->sent_seq = %x\n", nf_idx, recv_nf_idx, tcph->sent_seq);
-
-            if(tcph->sent_seq != 0xdeadbeef){
-                curr_invalid_pkts ++;
-                invalid_pkts ++;
-                continue;
-            }
-            if(recv_nf_idx < 4)
-                received_pkts[recv_nf_idx] ++;
-
-            if(nf_idx == recv_nf_idx){
-                uint32_t pkt_idx = tcph->recv_ack;
-                uint64_t curr_received_pkts = received_pkts[nf_idx];
-                uint32_t lost_pkts = pkt_idx + 1 - curr_received_pkts;
-
-                // TODO: the packets might get re-ordered. 
-                // printf("%lu, %llu\n", pkt_idx, curr_received_pkts);
-                
-                // these packets are lost
-                // if(lost_pkts != 0){
-                //     received_pkts[nf_idx] += lost_pkts
-                // }
-
-                if(!warmup_end && pkt_idx >= WARMUP_NPKTS - 1)
-                {
-            		warmup_end = 1;
-                    lost_pkt_during_cold_start = lost_pkts; 
-                    printf("[recv_pacekts th%d]: warm up ends, lost_pkt_during_cold_start = %llu\n", nf_idx, lost_pkt_during_cold_start);
-            		// printf("[recv_pacekts th%d] pkt_idx in latest packet %u, received_pkts[nf_idx] %llu\n", nf_idx, pkt_idx, curr_received_pkts);
-                }
-                if(curr_received_pkts % PRINT_INTERVAL == 0){
-                    printf("[recv_pacekts th%d]: pkts received: %llu\n", nf_idx, curr_received_pkts);
-                }
-                if(tcph->recv_ack == 0xFFFFFFFF){
-                    goto finished;
-                }
-            }
-        }
-    }
-finished:
-	close(sockfd);
-    force_quit_send[nf_idx] = 1;
-    force_quit_recv[nf_idx] = 1;
-
-    for(int i = 0; i < MAX_BATCH_SIZE; i++){
-        free(pkt_buf[i]->content);
-        free(pkt_buf[i]);
-    }
-
-    while(print_order != num_nfs){
-        sleep(1);
-    }
-    exit(0);
-    // pthread_exit(NULL);
-	// return NULL;
-}
-
-
 static void signal_handler(int signum)
 {
 	if (signum == SIGINT || signum == SIGTERM) {
 		printf("\n\nSignal %d received, preparing to exit...\n",
 				signum);
         for(int i = 0; i < 4; i++){
-    		force_quit_send[i] = 1;
-            force_quit_recv[i] = 1;
+    		force_quit[i] = 1;
         }
 	}
 }
@@ -256,14 +231,13 @@ static void signal_handler(int signum)
 int main(int argc, char *argv[]){
     signal(SIGINT, signal_handler);
     for(int i = 0; i < 4; i++){
-		force_quit_send[i] = 0;
-        force_quit_recv[i] = 0;
+		force_quit[i] = 0;
     }
 
     // for pkt_puller2;
     // char * tracepath = "./data/ictf2010_2mpacket.dat";
     // char * tracepath = "./data/ictf2010_2mpacket_zipf.dat"
-    // for pkt_puller and 3;
+    // for pkt_puller and pkt_puller3;
     char * tracepath = "./data/ictf2010_100kflow.dat";
     
     int option;
@@ -292,17 +266,15 @@ int main(int argc, char *argv[]){
 
     load_pkt(tracepath);
 
-    pthread_t threads[14];
-    int nf_idx[7] = {0, 1, 2, 3, 4, 5, 6};
-    for(int i = 0; i < num_nfs*2; i += 2){
-        pthread_create(&threads[i], NULL, send_pkt_func, (void*)(nf_idx+i/2));
-        pthread_create(&threads[i+1], NULL, recv_pkt_func, (void*)(nf_idx+i/2));
+    pthread_t threads[4];
+    int nf_idx[4] = {0, 1, 2, 3};
+    for(int i = 0; i < num_nfs; i ++){
+        pthread_create(&threads[i], NULL, send_pkt_func, (void*)(nf_idx+i));
     }
     
-    for(int i = 0; i < num_nfs*2; i += 2){
+    for(int i = 0; i < num_nfs; i ++){
         pthread_join(threads[i], NULL);
-        pthread_join(threads[i+1], NULL);
-    }    
+    }
 
     return 0;
 }
