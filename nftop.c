@@ -209,14 +209,19 @@ int main(int argc, char* argv[]){
                 break; 
         }
     }
+    if (num_nfs > 4) {
+       printf("Only support num_nfs <= 4!");
+       exit(0);
+    }
+    
     printf("%d NFs: ", num_nfs);
     for(int i = 0; i < num_nfs; i++){
         printf("%s ", nf_names[i]);
     }
     printf("\n");
     
-    pthread_t threads[8];
-    int nf_idx[8] = {0, 1, 2, 3, 4, 5, 6, 7};
+    pthread_t threads[4];
+    int nf_idx[4] = {0, 1, 2, 3};
     for(int i = 0; i < num_nfs; i++){
         pthread_create(&threads[i], NULL, loop_func, (void*)(nf_idx+i));
     }

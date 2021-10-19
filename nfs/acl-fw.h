@@ -137,7 +137,7 @@ void recover_hashmap(){
         cnt++;
         bool_dleft_update(&ht_meta_acl_fw_cache, flow, val == 1);
     }
-    printf("acl-fw recover done\n");
+    // printf("acl-fw recover done\n");
 }
 
 static uint32_t pkt_cnt_acl_fw = 0;
@@ -161,7 +161,7 @@ int acl_fw_init(){
 #ifndef FW_DUMP
     recover_hashmap();
 #endif
-    printf("acl_fw init done\n");
+    printf("acl_fw init done!\n");
     return 0;
 }
 

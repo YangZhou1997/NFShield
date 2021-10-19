@@ -18,7 +18,7 @@ int mem_test_init(){
         return 0;
     }
     srand((unsigned)time(NULL));
-    printf("mem_test init done\n");
+    printf("mem_test init done!\n");
     return 0;
 }
 void mem_test(uint8_t *pkt_ptr){
