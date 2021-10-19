@@ -52,11 +52,11 @@ int dpi_init(){
 #else
     FILE * f_restore = fopen("./data/ac.raw", "r");
     acsmRestoreSparseDFA_Banded(acsm, f_restore);
-    printf("ac restore done!\n");
+    // printf("ac restore done!\n");
 #endif
 
     srand((unsigned)time(NULL));
-    printf("dpi init done\n");
+    printf("dpi init done!\n");
     return 0;
 }
 

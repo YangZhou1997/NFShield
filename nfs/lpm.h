@@ -29,7 +29,7 @@ int lpm_init(){
         lpm_insert(iplookup, ip, 32, gate);
     }
     lpm_construct_table(iplookup);
-    printf("lpm init done\n");
+    printf("lpm init done!\n");
     return 0;
 }
 

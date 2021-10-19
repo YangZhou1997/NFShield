@@ -263,6 +263,10 @@ int main(int argc, char *argv[]){
                 break; 
         }
     }
+    if (num_nfs > 4) {
+       printf("Only support num_nfs <= 4!");
+       exit(0);
+    }
 
     load_pkt(tracepath);
 

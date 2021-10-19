@@ -22,7 +22,7 @@ int maglev_init(){
     }
     maglev_init_inner("maglev", M, N, backend_ip, backend_status, &mag_meta);
     srand((unsigned)time(NULL));
-    printf("maglev init done\n");
+    printf("maglev init done!\n");
     return 0;
 }
 

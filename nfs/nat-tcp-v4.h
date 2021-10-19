@@ -26,7 +26,7 @@ int nat_tcp_v4_init(){
         return 0;
     }
     srand((unsigned)time(NULL));
-    printf("nat init done\n");
+    printf("nat init done!\n");
     return 0;
 }
 void nat_tcp_v4(uint8_t *pkt_ptr){

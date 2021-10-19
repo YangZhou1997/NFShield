@@ -114,6 +114,15 @@ void init_socket(int *sockfd_p, struct sockaddr_ll* send_sockaddr, struct ifreq 
         return;
     }
 
+    int socket_buff_size = MAX_UNACK_WINDOW * 2048;
+    int res = setsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, &socket_buff_size, sizeof(socket_buff_size));
+    if(res == -1)
+        printf("Error setsockopt SO_SNDBUF");
+    res = setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, &socket_buff_size, sizeof(socket_buff_size));
+    if(res == -1)
+        printf("Error setsockopt SO_RCVBUF");
+
+
 	/* Index of the network device */
 	socket_address.sll_ifindex = if_idx.ifr_ifindex;
 	/* Address length*/
@@ -163,6 +172,8 @@ int sendto_batch(int sockfd, int batch_size, pkt_t** pkt_buf, struct sockaddr_ll
     int cnt = 0;
     while(cnt < batch_size){
         uint32_t bytes, sent = 0;
+        // Note here might causes deadlock if socket buffer space is not enough
+        // but since we specify the socket buffer to be larger than all unacked packets, the deadlock won't happen here.
         do{
             bytes = sendto(sockfd, pkt_buf[cnt]->content + sent, pkt_buf[cnt]->len - sent, MSG_DONTWAIT, (struct sockaddr*)send_sockaddr, sizeof(struct sockaddr_ll));
             if(bytes < 0){
