@@ -67,11 +67,11 @@ cd NF-GEM5 && ./nftop -n lpm -n dpi -n monitoring -n mem_test -t 4000000 -p 1024
 where in mem_test, for each packet, it will randomly access 10240 (*-p*) continuous bytes in a 4000000-bytes (*-t*) array. 
 Here "random access" means reading the 4-bytes integer, increment it by one, and write it back. You can check more details in [mem_test()](./nfs/mem-test.h). 
 
-## Start pktgen in another qemu with 8 cores
-Make sure that you have 8 cores in your pktgen server. When using less number of cores, the pktgen performance will decrease, and sometimes deadlock. 
+## Start pktgen in another qemu with 4 cores
+Make sure that you have 4 cores in your pktgen server. When using less number of cores, the pktgen performance will decrease, and sometimes deadlock. 
 **In order to get correct performance number, you should wait utill all NFs init done.**
 ```
-bash run_qemu2.sh 8
+bash run_qemu2.sh 4
 >> root
 cd NF-GEM5 && ./pktgen -n 4 -d DE:AD:BE:EF:7F:45
 ```
@@ -93,7 +93,7 @@ cd NF-GEM5 && ./pktgen -n 4 -d DE:AD:BE:EF:7F:45
 ```
 
 ## Notes
-There is still rare cases that pktgen deadlock happens (may be caused by packet reordering/drops in the network link) when using 8 cores -- TO BE FIXED. 
+There is still rare cases that pktgen deadlock happens (may be caused by packet reordering/drops in the network link) when using 4 cores -- TO BE FIXED. 
 When it happens, normally you just need to ctrl+c the pktgen, and rerun, then the deallock should disappear. 
 Okay, it turns out to be the memory ordering issue, adding barrier() fixes. -- no, it cannot fix
 Okay, it seems using large MAX_UNACK_WINDOW can fix it. 

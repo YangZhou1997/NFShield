@@ -148,12 +148,23 @@ int recvfrom_batch(int sockfd, int buff_size, pkt_t** pkt_buf){
     return cnt;
 }
 
+int recvfrom_single(int sockfd, int buff_size, pkt_t* pkt_buf){
+    int numbytes = 0;
+    // once returned, this is guaranteed to return a full ethernet frame. 
+    numbytes = recvfrom(sockfd, pkt_buf->content, buff_size, MSG_DONTWAIT, NULL, NULL);
+    if(numbytes <= 0){
+        return 0;
+    }
+    pkt_buf->len = numbytes;
+    return 1;
+}
+
 int sendto_batch(int sockfd, int batch_size, pkt_t** pkt_buf, struct sockaddr_ll* send_sockaddr){
     int cnt = 0;
     while(cnt < batch_size){
         uint32_t bytes, sent = 0;
         do{
-            bytes = sendto(sockfd, pkt_buf[cnt]->content + sent, pkt_buf[cnt]->len - sent, 0, (struct sockaddr*)send_sockaddr, sizeof(struct sockaddr_ll));
+            bytes = sendto(sockfd, pkt_buf[cnt]->content + sent, pkt_buf[cnt]->len - sent, MSG_DONTWAIT, (struct sockaddr*)send_sockaddr, sizeof(struct sockaddr_ll));
             if(bytes < 0){
                 continue;
             }
@@ -164,4 +175,15 @@ int sendto_batch(int sockfd, int batch_size, pkt_t** pkt_buf, struct sockaddr_ll
     return cnt;
 }
 
+int sendto_single(int sockfd, pkt_t* pkt_buf, struct sockaddr_ll* send_sockaddr){
+    uint32_t bytes, sent = 0;
+    do{
+        bytes = sendto(sockfd, pkt_buf->content + sent, pkt_buf->len - sent, MSG_DONTWAIT, (struct sockaddr*)send_sockaddr, sizeof(struct sockaddr_ll));
+        if(bytes < 0){
+            continue;
+        }
+        sent += bytes;
+    }while(sent != pkt_buf->len);
+    return 1;
+}
 #endif

@@ -6,7 +6,7 @@ rsync -rv --exclude=.git --max-size=500m ~/NF-GEM5/ ~/riscv-buildroot/output/tar
 cd ~/riscv-buildroot/
 make -j8
 
-core=8
+core=4
 if [ "$#" -e 2 ]; then
     core=$1
 fi
