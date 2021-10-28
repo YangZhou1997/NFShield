@@ -25,6 +25,7 @@
 
 static atomic_ullong unack_pkts[4] = {0,0,0,0};
 static atomic_ullong sent_pkts[4] = {0,0,0,0};
+static atomic_ullong sent_pkts_size[4] = {0,0,0,0};
 static atomic_ullong received_pkts[4] = {0,0,0,0};
 static atomic_ullong lost_pkts[4] = {0,0,0,0};
 
@@ -166,6 +167,8 @@ void *send_pkt_func(void *arg) {
             tcph = (struct tcp_hdr *) (pkt_buf[i]->content + sizeof(struct ipv4_hdr) + sizeof(struct ether_hdr));
             tcph->sent_seq = 0xdeadbeef;
             tcph->recv_ack = sent_pkts[nf_idx] + i;
+            // inter-pkt frame
+            sent_pkts_size[nf_idx] += pkt_buf[i]->len + 20;
         }
 
         sendto_batch(sockfd, burst_size, pkt_buf, &send_sockaddr);
@@ -187,6 +190,7 @@ void *send_pkt_func(void *arg) {
     gettimeofday(&end, NULL); 
     if(warmup_end){
         sent_pkts[nf_idx] -= WARMUP_NPKTS;
+        sent_pkts_size[nf_idx] = 0;
     }
     double time_taken; 
     time_taken = (end.tv_sec - start.tv_sec) * 1e6; 
@@ -203,7 +207,7 @@ void *send_pkt_func(void *arg) {
     while(print_order != nf_idx || finished_nfs != num_nfs){
         sleep(1);
     }
-    printf("[send_pacekts th%d]:     pkts sent: %llu, unacked pkts: %4llu, potentially lost pkts: %4llu, %.8lf Mpps\n", nf_idx, sent_pkts[nf_idx], unack_pkts[nf_idx], lost_pkts[nf_idx], (double)(sent_pkts[nf_idx]) * 1e-6 / time_taken);
+    printf("[send_pacekts th%d]:     pkts sent: %llu, unacked pkts: %4llu, potentially lost pkts: %4llu, %.8lf Mpps, %.8lfGbps\n", nf_idx, sent_pkts[nf_idx], unack_pkts[nf_idx], lost_pkts[nf_idx], (double)(sent_pkts[nf_idx]) * 1e-6 / time_taken, sent_pkts_size[nf_idx] * 8 * 1e-6 / time_taken / 1e9);
     // printf("max_waiting_cycles = %u\n", max_waiting_cycles);
     print_order = nf_idx + 1;
    
