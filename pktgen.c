@@ -179,6 +179,7 @@ void *send_pkt_func(void *arg) {
         if(!warmup_end && sent_pkts[nf_idx] >= WARMUP_NPKTS){
             gettimeofday(&start, NULL);
             warmup_end = 1; 
+            sent_pkts_size[nf_idx] = 0;
         }
         if((sent_pkts[nf_idx] / MAX_BATCH_SIZE) % (PRINT_INTERVAL / MAX_BATCH_SIZE) == 0){
             printf("[send_pacekts th%d]:     pkts sent: %llu, unacked pkts: %llu, potentially lost pkts: %llu\n", nf_idx, sent_pkts[nf_idx], unack_pkts[nf_idx], lost_pkts[nf_idx]);
@@ -190,7 +191,6 @@ void *send_pkt_func(void *arg) {
     gettimeofday(&end, NULL); 
     if(warmup_end){
         sent_pkts[nf_idx] -= WARMUP_NPKTS;
-        sent_pkts_size[nf_idx] = 0;
     }
     double time_taken; 
     time_taken = (end.tv_sec - start.tv_sec) * 1e6; 
@@ -207,7 +207,7 @@ void *send_pkt_func(void *arg) {
     while(print_order != nf_idx || finished_nfs != num_nfs){
         sleep(1);
     }
-    printf("[send_pacekts th%d]:     pkts sent: %llu, unacked pkts: %4llu, potentially lost pkts: %4llu, %.8lf Mpps, %.8lfGbps\n", nf_idx, sent_pkts[nf_idx], unack_pkts[nf_idx], lost_pkts[nf_idx], (double)(sent_pkts[nf_idx]) * 1e-6 / time_taken, sent_pkts_size[nf_idx] * 8 * 1e-6 / time_taken / 1e9);
+    printf("[send_pacekts th%d]:     pkts sent: %llu, unacked pkts: %4llu, potentially lost pkts: %4llu, %.8lf Mpps, %.6lfGbps\n", nf_idx, sent_pkts[nf_idx], unack_pkts[nf_idx], lost_pkts[nf_idx], (double)(sent_pkts[nf_idx]) * 1e-6 / time_taken, sent_pkts_size[nf_idx] * 8 * 1e-6 / time_taken / 1e9);
     // printf("max_waiting_cycles = %u\n", max_waiting_cycles);
     print_order = nf_idx + 1;
    
