@@ -68,6 +68,7 @@ void *loop_func(void *arg){
             // eh = (struct ether_hdr*) pkt_buf[i]->content;
          
             pkt_size_sum += pkt_buf[i]->len;
+            
             pkt_num ++;
             if(pkt_num % PRINT_INTERVAL == 0){
                 printf("%-12s (nf_idx %u): pkts received %u, avg_pkt_size %lf\n", nf_names[nf_idx], nf_idx, pkt_num, pkt_size_sum * 1.0 / pkt_num);
