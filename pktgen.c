@@ -207,7 +207,7 @@ void *send_pkt_func(void *arg) {
     while(print_order != nf_idx || finished_nfs != num_nfs){
         sleep(1);
     }
-    printf("[send_pacekts th%d]:     pkts sent: %llu, unacked pkts: %4llu, potentially lost pkts: %4llu, %.8lf Mpps, %.6lfGbps\n", nf_idx, sent_pkts[nf_idx], unack_pkts[nf_idx], lost_pkts[nf_idx], (double)(sent_pkts[nf_idx]) * 1e-6 / time_taken, sent_pkts_size[nf_idx] * 8 * 1e-6 / time_taken / 1e9);
+    printf("[send_pacekts th%d]:     pkts sent: %llu, unacked pkts: %4llu, potentially lost pkts: %4llu, %.8lf Mpps, %.6lfGbps\n", nf_idx, sent_pkts[nf_idx], unack_pkts[nf_idx], lost_pkts[nf_idx], (double)(sent_pkts[nf_idx]) * 1e-6 / time_taken, (double)sent_pkts_size[nf_idx] * 8 / time_taken * 1e-9);
     // printf("max_waiting_cycles = %u\n", max_waiting_cycles);
     print_order = nf_idx + 1;
    
