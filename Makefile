@@ -2,7 +2,7 @@
 #CCP := arm-linux-gnueabi-g++
 #  CC := gcc
 #  CCP := g++
-CC := riscv64-linux-gcc
+CC := riscv64-unknown-linux-gnu-gcc
 # CC := gcc
 
 
