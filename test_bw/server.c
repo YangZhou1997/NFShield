@@ -46,6 +46,7 @@ static inline void process_loop(void)
 
 int main(void)
 {
+    pin_process_memory();
     // setup MMIO mapping
     mmio_map(&__mmio, NIC_BASE, 6);
 

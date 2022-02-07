@@ -6,7 +6,9 @@
 #include "stdio.h"
 #include "unistd.h"
 #include "inttypes.h"
+#include<sys/mman.h>
 
+// TODO: we need to pin the packet memory
 uintptr_t virt_to_phys_user(uintptr_t vaddr) {
     FILE *pagemap;
     intptr_t paddr = 0;
@@ -30,5 +32,12 @@ uintptr_t virt_to_phys_user(uintptr_t vaddr) {
 
     return paddr;
 }   
+
+void pin_process_memory() {
+    if(mlockall(MCL_CURRENT | MCL_FUTURE) < 0) {
+        perror("mlockall");
+        exit(0);
+    }
+}
 
 #endif // __VIRT_TO_PHYS_H__
