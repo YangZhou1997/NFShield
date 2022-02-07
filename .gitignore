@@ -20,3 +20,5 @@ ictf2010_2mpacket_zipf.dat
 testRawNFRate_trace
 testRawSendingRate_64B
 testRawSendingRate_trace
+**/client
+**/server
