@@ -1,5 +1,5 @@
 {
-  "benchmark_name" : "workloads",
+  "benchmark_name" : "nf_workloads",
   "common_bootbinary" : "multi-core.riscv",
   "common_rootfs" : null,
   "common_outputs" : [],
