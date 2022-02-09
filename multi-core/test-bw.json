@@ -1,0 +1,20 @@
+{
+  "benchmark_name" : "workloads",
+  "common_rootfs" : null,
+  "common_outputs" : [],
+  "common_simulation_outputs" : ["uartlog"],
+  "workloads" : [
+    {
+      "name" : "server",
+      "bootbinary" : "bw-test-server.riscv",
+      "simulation_outputs": [],
+      "outputs" : []
+    },
+    {
+      "name" : "client",
+      "bootbinary" : "bw-test-client.riscv",
+      "simulation_outputs": [],
+      "outputs" : []
+    }
+  ]
+}
