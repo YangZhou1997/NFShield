@@ -69,7 +69,7 @@ static inline void nic_post_send(uint64_t addr, uint64_t len)
 	// reg_write64(NIC_SEND_REQ, request);
 
 	uintptr_t phy_addr = virt_to_phys_user(addr);
-	uint64_t request = (len << 48) | (phy_addr & 0xffffffffffffL);
+	uint64_t request = ((len & 0x7fff) << 48) | (phy_addr & 0xffffffffffffL);
 	reg_write64(NIC_SEND_REQ, request);
 }
 

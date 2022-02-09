@@ -7,6 +7,7 @@ CPPFLAGS := $(CFLAGS)
 TEST_PROGS =
 TEST_PROGS += client
 TEST_PROGS += server
+TEST_PROGS += test_latency
 
 # ==== Rules ==================================================================
 
