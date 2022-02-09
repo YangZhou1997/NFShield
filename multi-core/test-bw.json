@@ -1,18 +1,18 @@
 {
-  "benchmark_name" : "workloads",
+  "benchmark_name" : "nf_workloads",
   "common_rootfs" : null,
   "common_outputs" : [],
   "common_simulation_outputs" : ["uartlog"],
   "workloads" : [
     {
       "name" : "server",
-      "bootbinary" : "bw-test-server.riscv",
+      "bootbinary" : "test-bw-server.riscv",
       "simulation_outputs": [],
       "outputs" : []
     },
     {
       "name" : "client",
-      "bootbinary" : "bw-test-client.riscv",
+      "bootbinary" : "test-bw-client.riscv",
       "simulation_outputs": [],
       "outputs" : []
     }
