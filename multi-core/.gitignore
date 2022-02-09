@@ -1,2 +1,2 @@
 *.o
-/multi-core
+*.riscv

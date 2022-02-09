@@ -1,6 +1,6 @@
 {
   "benchmark_name" : "workloads",
-  "common_bootbinary" : "multi-core",
+  "common_bootbinary" : "multi-core.riscv",
   "common_rootfs" : null,
   "common_outputs" : [],
   "common_simulation_outputs" : ["uartlog"]

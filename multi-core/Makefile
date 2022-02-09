@@ -6,12 +6,19 @@ CC_LINUX=riscv64-unknown-linux-gnu-gcc
 CFLAGS_LINUX=-Wall -O2
 LDFLAGS_LINUX=-lrt
 
-multi-core: multi-core.o crt.o syscalls.o
-	$(CC) -T link.ld $(LDFLAGS) $^ -o $@
-	cp multi-core workloads/
+TEST_PROGS = multi-core
+TEST_PROGS += test-bw-server test-bw-client
 
-%.o: %.c util.h encoding.h
+default: $(addsuffix .riscv,$(TEST_PROGS))
+
+%.riscv: %.o crt.o syscalls.o
+	$(CC) -T link.ld $(LDFLAGS) $^ -o $@
+
+%.o: %.c util.h encoding.h mmio.h icenic.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 %.o: %.S
 	$(CC) $(CFLAGS) -c $< -o $@
+
+clean: 
+	rm -f *.riscv *.o
