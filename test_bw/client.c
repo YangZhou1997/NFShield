@@ -16,9 +16,11 @@ char inflight[NPACKETS];
 static void fill_packet(
 	uint64_t *packet, uint64_t srcmac, uint64_t dstmac, int id)
 {
-	packet[0] = dstmac << 16;
-	packet[1] = srcmac | (0x1008L << 48);
-	packet[2] = id;
+    packet[0] = dstmac << 16;
+	packet[1] = srcmac | (0x0208L << 48);
+	// packet[0] = dstmac << 16;
+    // *(uint64_t*)(((uint8_t*)packet + 6)) = srcmac << 16;
+    // *(uint16_t*)(((uint8_t*)packet + 12)) = 0x0208;
 
 	for (int i = 3; i < PACKET_WORDS; i++)
 		packet[i] = random();
@@ -65,12 +67,14 @@ int main(void)
 {
     pin_process_memory();
     // setup MMIO mapping
-    mmio_map(&__mmio, NIC_BASE, 6);
+    mmio_map(&__mmio, NIC_BASE, 12);
 
 	uint64_t srcmac = nic_macaddr();
     // 00:12:6d:00:00:02
 	uint64_t dstmac = 0x0200006d1200;
-	uint64_t cycle;
+    printf("srcmac = %lx, dstmac = %lx\n", srcmac, dstmac);
+	
+    uint64_t cycle;
 
 	srandom(0xCFF32987);
 
@@ -91,8 +95,8 @@ int main(void)
 	    cycle = rdcycle() - start_cycle;
 	} while (cycle < TEST_CYCLES);
 
-	printf("cycles: %lu, completed: %d\n",
-			cycle - start_cycle, total_comp);
+	printf("cycles: %lu, completed: %d, mpps: %lf\n",
+			cycle, total_comp, total_comp / (cycle/CPU_GHZ*1e-3));
 
 	while (total_comp < total_req)
 		finish_comp();
