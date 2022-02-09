@@ -23,7 +23,7 @@ static inline void process_loop(void)
 	counts = nic_counts();
 	recv_req  = (counts >> NIC_COUNT_RECV_REQ)  & 0xff;
     recv_comp = (counts >> NIC_COUNT_RECV_COMP) & 0xff;
-    if (recv_req != 0) {
+    if (recv_req != 0 || recv_comp != 0) {
         printf("%d vs. %d\n", recv_req, recv_comp);
     }
 
@@ -37,7 +37,7 @@ static inline void process_loop(void)
     	comp_id = (comp_id + 1) % NPACKETS;
     	total_comp++;
         uint64_t* packet = in_packets[comp_id];
-        if ((print_cnt ++) % 100000 == 0) {
+        if ((print_cnt ++) % 10 == 0) {
             printf("recv_comp: %lx\n", packet[2]);
         }
     }

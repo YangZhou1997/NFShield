@@ -93,11 +93,19 @@ void thread_entry(int cid, int nc)
 	    cycle = rdcycle() - start_cycle;
 	} while (cycle < TEST_CYCLES);
 
-	printf("cycles: %lu, completed: %d, mpps: %lf\n",
-			cycle, total_comp, total_comp / (cycle/CPU_GHZ*1e-3));
+    // cannot print float, thus we print kpps
+	printf("cycles: %lu, completed: %d, kpps: %d\n",
+			cycle, total_comp, total_comp / (int)(cycle/CPU_GHZ*1e-6));
 
 	while (total_comp < total_req)
 		finish_comp();
+
+    // wait for a while
+    start_cycle = rdcycle();
+	do {
+        process_loop();
+	    cycle = rdcycle() - start_cycle;
+	} while (cycle < TEST_CYCLES * 10);
 
 	return 0;
 }
