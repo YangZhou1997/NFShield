@@ -11,7 +11,6 @@
 #undef TYPE
 #undef TYPE_STR
 #undef TYPED_NAME
-#include "../utils/pkt-puller.h"
 
 #define HT_SIZE_MON (0.5 * 1024 * 1024)
 static u32_dleft_meta_t ht_meta_monitor;
@@ -23,7 +22,7 @@ int monitoring_init(){
         printf("bootmemory allocation error\n");
         return 0;
     }
-    srand((unsigned)time(NULL));
+    srandom((unsigned)time(NULL));
     printf("monitoring init done!\n");
     return 0;
 }

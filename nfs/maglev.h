@@ -5,7 +5,6 @@
 #include "../utils/pkt-ops.h"
 #include "../utils/common.h"
 #include "../utils/maglev-algo.h"
-#include "../utils/pkt-puller.h"
 
 #define M 65537
 #define N 3
@@ -17,11 +16,11 @@ static maglev_meta_t mag_meta;
 int maglev_init(){
     for(int i = 0; i < N; i++)
     {
-        backend_ip[i] = rand();
+        backend_ip[i] = random();
         backend_status[i] = HEALTHY;
     }
     maglev_init_inner("maglev", M, N, backend_ip, backend_status, &mag_meta);
-    srand((unsigned)time(NULL));
+    srandom((unsigned)time(NULL));
     printf("maglev init done!\n");
     return 0;
 }

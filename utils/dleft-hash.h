@@ -1,9 +1,3 @@
-#ifdef	__cplusplus
-/* *INDENT-OFF* */
-extern "C" {
-/* *INDENT-ON* */
-#endif
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -65,7 +59,7 @@ int TYPED_NAME(dleft_init)(char *table_name, uint32_t entry_num, TYPED_NAME(dlef
     printf("memory size: %lfMB\n", whole_size * 1.0 / 1024 / 1024);
 #endif
 
-    block_ptr = zmalloc(whole_size, ALIGN, table_name);
+    block_ptr = malloc(whole_size);
     if(block_ptr == NULL)
         return -1;
     
@@ -375,10 +369,4 @@ int TYPED_NAME(dleft_add_value)(TYPED_NAME(dleft_meta_t) *ht_ptr, five_tuple_t k
     }
     return -2;
 }
-#endif
-
-#ifdef	__cplusplus
-/* *INDENT-OFF* */
-}
-/* *INDENT-ON* */
 #endif

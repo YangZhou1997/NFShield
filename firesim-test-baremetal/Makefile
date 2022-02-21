@@ -13,16 +13,19 @@ TEST_PROGS += test-bw-server test-bw-client
 default: $(addsuffix .riscv,$(TEST_PROGS))
 
 %.riscv: %.o crt.o syscalls.o
-	$(CC) -T link.ld $(LDFLAGS) $^ -o $@
+	$(CC) -T ../utils/link.ld $(LDFLAGS) $^ -o $@
 	cp *.ini ${FIRESIM}/
 	cp *.json ${FIRESIM}/
 	mkdir -p ${FIRESIM}/nf_workloads
 	cp $@ ${FIRESIM}/nf_workloads
 
-%.o: %.c util.h encoding.h mmio.h icenic.h
+%.o: %.c ../utils/util.h ../utils/encoding.h ../utils/mmio.h ../utils/icenic.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
-%.o: %.S
+syscalls.o: ../utils/syscalls.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+%.o: ../utils/%.S
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean: 

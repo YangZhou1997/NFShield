@@ -54,7 +54,7 @@ static inline void arch_spin_lock(arch_spinlock_t* lock) {
   }
 }
 
-arch_spinlock_t init_lock, exit_lock, print_lock;
+arch_spinlock_t init_lock, exit_lock, print_lock, alloc_lock;
 int num_exited = 0;
 
 void co_exit(int err) {
@@ -563,4 +563,454 @@ time_t time(time_t *tloc)
 	if (tloc != NULL)
 		*tloc = secs;
 	return secs;
+}
+
+// the following malloc is borrowed from https://github.com/embeddedartistry/libmemory
+/*
+ * Copyright © 2017 Embedded Artistry LLC.
+ * License: MIT. See LICENSE file for details.
+ */
+
+#include "ll.h"
+#include <memory.h>
+#include <stdint.h>
+
+/**
+ * Simple macro for making sure memory addresses are aligned
+ * to the nearest power of two
+ */
+#ifndef align_up
+#define align_up(num, align) (((num) + ((align)-1)) & ~((align)-1))
+#endif
+
+/*
+ * This is the container for our free-list.
+ * Node the usage of the linked list here: the library uses offsetof
+ * and container_of to manage the list and get back to the parent struct.
+ */
+typedef struct
+{
+	ll_t node;
+	size_t size;
+	char* block;
+} alloc_node_t;
+
+/**
+ * We vend a memory address to the user.  This lets us translate back and forth
+ * between the vended pointer and the container we use for managing the data.
+ */
+#define ALLOC_HEADER_SZ offsetof(alloc_node_t, block)
+
+// We are enforcing a minimum allocation size of 32B.
+#define MIN_ALLOC_SZ ALLOC_HEADER_SZ + 32
+
+static void defrag_free_list(void);
+
+static inline void malloc_lock() {
+    arch_spin_lock(&alloc_lock);
+}
+
+static inline void malloc_unlock() {
+    arch_spin_unlock(&alloc_lock);
+}
+
+// This macro simply declares and initializes our linked list
+static LIST_INIT(free_list);
+
+/**
+ * When we free, we can take our node and check to see if any memory blocks
+ * can be combined into larger blocks.  This will help us fight against
+ * memory fragmentation in a simple way.
+ */
+void defrag_free_list(void)
+{
+	alloc_node_t* b = NULL;
+	alloc_node_t* lb = NULL;
+	alloc_node_t* t = NULL;
+
+	list_for_each_entry_safe(b, t, &free_list, node)
+	{
+		if(lb)
+		{
+			if((((uintptr_t)&lb->block) + lb->size) == (uintptr_t)b)
+			{
+				lb->size += sizeof(*b) + b->size;
+				list_del(&b->node);
+				continue;
+			}
+		}
+		lb = b;
+	}
+}
+
+void* malloc(size_t size)
+{
+	void* ptr = NULL;
+	alloc_node_t* blk = NULL;
+
+	if(size > 0)
+	{
+		// Align the pointer
+		size = align_up(size, sizeof(void*));
+
+		malloc_lock();
+
+		// try to find a big enough block to alloc
+		list_for_each_entry(blk, &free_list, node)
+		{
+			if(blk->size >= size)
+			{
+				ptr = &blk->block;
+				break;
+			}
+		}
+
+		// we found something
+		if(ptr)
+		{
+			// Can we split the block?
+			if((blk->size - size) >= MIN_ALLOC_SZ)
+			{
+				alloc_node_t* new_blk = (alloc_node_t*)((uintptr_t)(&blk->block) + size);
+				new_blk->size = blk->size - size - ALLOC_HEADER_SZ;
+				blk->size = size;
+				list_insert(&new_blk->node, &blk->node, blk->node.next);
+			}
+
+			list_del(&blk->node);
+		}
+
+		malloc_unlock();
+
+	} // else NULL
+
+	return ptr;
+}
+
+void* calloc(size_t n, size_t size) {
+    void *p = malloc(n * size);
+    memset(p, 0, n * size);
+    return p;
+}
+
+void free(void* ptr)
+{
+	// Don't free a NULL pointer..
+	if(ptr)
+	{
+		// we take the pointer and use container_of to get the corresponding alloc block
+		alloc_node_t* blk = container_of(ptr, alloc_node_t, block);
+		alloc_node_t* free_blk = NULL;
+
+		malloc_lock();
+
+		// Let's put it back in the proper spot
+		list_for_each_entry(free_blk, &free_list, node)
+		{
+			if(free_blk > blk)
+			{
+				list_insert(&blk->node, free_blk->node.prev, &free_blk->node);
+				goto blockadded;
+			}
+		}
+		list_add_tail(&blk->node, &free_list);
+
+	blockadded:
+		// Let's see if we can combine any memory
+		defrag_free_list();
+
+		malloc_unlock();
+	}
+}
+
+/**
+ * @brief Assign blocks of memory for use by malloc().
+ *
+ * Initializes the malloc() backend with a memory address and memory pool size.
+ *	This memory is assumed to be owned by malloc() and is vended out when memory is requested.
+ * 	Multiple blocks can be added.
+ *
+ * NOTE: This API must be called before malloc() can be used. If you call malloc() before
+ * 	allocating memory, malloc() will return NULL because there is no available memory
+ *	to provide to the user.
+ *
+ * @param addr Pointer to the memory block address that you are providing to malloc()
+ * @param size Size of the memory block that you are providing to malloc()
+ */
+
+void malloc_addblock(void* addr, size_t size)
+{
+	// let's align the start address of our block to the next pointer aligned number
+	alloc_node_t* blk = (void*)align_up((uintptr_t)addr, sizeof(void*));
+
+	// calculate actual size - remove our alignment and our header space from the availability
+	blk->size = (uintptr_t)addr + size - (uintptr_t)blk - ALLOC_HEADER_SZ;
+
+	// and now our giant block of memory is added to the list!
+	malloc_lock();
+	list_add(&blk->node, &free_list);
+	malloc_unlock();
+}
+
+#include <stdio.h>
+FILE *fopen(const char *filename, const char *mode) {
+    printf("fopen not implemented");
+    exit(0);
+}
+size_t fwrite( const void * ptr, size_t size, size_t count, FILE * stream ) {
+    printf("fwrite not implemented");
+    exit(0);
+}
+int fclose(FILE *stream) {
+    printf("fclose not implemented");
+    exit(0);
+}
+
+// the following is borrowed from https://github.com/aethaniel/minilib-c
+
+int isprint(int c)
+{
+	return(c>=0x20 && c<=0x7E);
+}
+int isascii(int c)
+{
+	return (c >= 0 && c< 128);
+}
+int toupper(int c)
+{
+	return islower (c) ? c - 'a' + 'A' : c;
+}
+int isupper(int c)
+{
+	return ((c>='A') && (c<='Z'));
+}
+int islower(int c)
+{
+	return ((c>='a') && (c<='z'));
+}
+int isalpha(int c)
+{
+	return((c >='a' && c <='z') || (c >='A' && c <='Z'));
+}
+int isxdigit (int c)
+{
+	return(((c>='0') && (c<='9')) || ((c>='A') && (c<='F')) || ((c>='a') && (c<='f')) );
+}
+int isspace(int c)
+{
+	return ((c>=0x09 && c<=0x0D) || (c==0x20));
+}
+
+#include "limits.h"
+long strtol (const char *nptr, char **ptr, int base)
+{
+	register const char *s = nptr;
+	register unsigned long acc;
+	register int c;
+	register unsigned long cutoff;
+	register int neg = 0, any, cutlim;
+
+	/*
+	 * Skip white space and pick up leading +/- sign if any.
+	 * If base is 0, allow 0x for hex and 0 for octal, else
+	 * assume decimal; if base is already 16, allow 0x.
+	 */
+	do 
+	{
+		c = *s++;
+	} while (isspace(c));
+	
+	if (c == '-') 
+	{
+		neg = 1;
+		c = *s++;
+	} 
+	else if (c == '+')
+		c = *s++;
+
+	if ((base == 0 || base == 16) &&
+	    c == '0' && (*s == 'x' || *s == 'X')) 
+	{
+		c = s[1];
+		s += 2;
+		base = 16;
+	}
+
+	if (base == 0)
+		base = c == '0' ? 8 : 10;
+
+	/*
+	 * Compute the cutoff value between legal numbers and illegal
+	 * numbers.  That is the largest legal value, divided by the
+	 * base.  An input number that is greater than this value, if
+	 * followed by a legal input character, is too big.  One that
+	 * is equal to this value may be valid or not; the limit
+	 * between valid and invalid numbers is then based on the last
+	 * digit.  For instance, if the range for longs is
+	 * [-2147483648..2147483647] and the input base is 10,
+	 * cutoff will be set to 214748364 and cutlim to either
+	 * 7 (neg==0) or 8 (neg==1), meaning that if we have accumulated
+	 * a value > 214748364, or equal but the next digit is > 7 (or 8),
+	 * the number is too big, and we will return a range error.
+	 *
+	 * Set any if any `digits' consumed; make it negative to indicate
+	 * overflow.
+	 */
+
+	cutoff = neg ? -(unsigned long)LONG_MIN : LONG_MAX;
+	cutlim = cutoff % (unsigned long)base;
+	cutoff /= (unsigned long)base;
+
+	for (acc = 0, any = 0;; c = *s++) 
+	{
+		if (isdigit(c))
+			c -= '0';
+		else if (isalpha(c))
+			c -= isupper(c) ? 'A' - 10 : 'a' - 10;
+		else
+			break;
+		if (c >= base)
+			break;
+               if (any < 0 || acc > cutoff || (acc == cutoff && c > cutlim))
+			any = -1;
+		else {
+			any = 1;
+			acc *= base;
+			acc += c;
+		}
+	}
+	if (any < 0) 
+	{
+		acc = neg ? LONG_MIN : LONG_MAX;
+	} 
+	else if (neg)
+		acc = -acc;
+	if (ptr != 0)
+		*ptr = (char *) (any ? s - 1 : nptr);
+	return (acc);
+}
+
+char *scan_string (const char *str, int base)
+{
+	unsigned char *str_ptr = (unsigned char*) str;
+
+	switch (base)
+	{
+		case 10:
+			while (!(isdigit(*str_ptr) || *str_ptr == '-' || *str_ptr == 0x0))
+			{
+				str_ptr++;
+			} 
+			break;
+		case 16:
+			while (!(isxdigit(*str_ptr) || *str_ptr == 0x0))
+			{
+				str_ptr++;
+			} 
+			break;
+	}
+
+	return (char*) str_ptr;
+}
+
+int sscanf(const char *str, const char *fmt, ...)
+{
+	int ret;
+	va_list ap;
+	char *format_ptr = (char*)fmt;
+	char *str_ptr = (char*)str;
+
+	int *p_int;
+	long *p_long;
+
+	ret = 0;
+
+	va_start (ap, fmt);
+
+	while ((*format_ptr != 0x0) && (*str_ptr !=	0x0))
+	{
+		if (*format_ptr == '%')
+		{
+			format_ptr++;
+
+			if (*format_ptr != 0x0)
+			{
+				switch (*format_ptr)
+				{
+				case 'd':	// expect an int
+				case 'i':
+					p_int = va_arg( ap, int *);
+					str_ptr=scan_string(str_ptr, 10);
+					if (*str_ptr==0x0) goto end_parse; 
+					*p_int = (int)strtol (str_ptr, &str_ptr, 10);
+					ret ++;
+					break;
+				case 'D':
+				case 'I': 	// expect a long
+					p_long = va_arg( ap, long *);
+					str_ptr=scan_string(str_ptr, 10);
+					if (*str_ptr==0x0) goto end_parse;
+					*p_long = strtol (str_ptr, &str_ptr, 10);
+					ret ++;
+					break;
+				case 'x':	// expect an int in hexadecimal format
+					p_int = va_arg( ap, int *);
+					str_ptr=scan_string(str_ptr, 16);
+					if (*str_ptr==0x0) goto end_parse;
+					*p_int = (int)strtol (str_ptr, &str_ptr, 16);
+					ret ++;
+					break;
+				case 'X':  // expect a long in hexadecimal format	
+					p_long = va_arg( ap, long *);
+					str_ptr=scan_string(str_ptr, 16);
+					if (*str_ptr==0x0) goto end_parse;
+					*p_long = strtol (str_ptr, &str_ptr, 16);
+					ret ++;
+					break;
+				}
+			}
+		}
+		
+		format_ptr++;
+	}	
+
+end_parse:	
+	va_end (ap);
+
+	if (*str_ptr == 0x0) ret = EOF;
+	return ret;
+}
+
+char *strstr(const char *searchee, const char *lookfor)
+{
+  /* Less code size, but quadratic performance in the worst case.  */
+  if (*searchee == 0)
+    {
+      if (*lookfor)
+	return (char *) NULL;
+      return (char *) searchee;
+    }
+
+  while (*searchee)
+    {
+      size_t i;
+      i = 0;
+
+      while (1)
+	{
+	  if (lookfor[i] == 0)
+	    {
+	      return (char *) searchee;
+	    }
+
+	  if (lookfor[i] != searchee[i])
+	    {
+	      break;
+	    }
+	  i++;
+	}
+      searchee++;
+    }
+
+  return (char *) NULL;
 }

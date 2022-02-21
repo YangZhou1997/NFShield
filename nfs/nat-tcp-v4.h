@@ -12,7 +12,6 @@
 #undef TYPE
 #undef TYPE_STR
 #undef TYPED_NAME
-#include "../utils/pkt-puller.h"
 
 #define HT_SIZE_NAT (1.6 * 1024 * 1024)
 static tuple_dleft_meta_t ht_meta_nat;
@@ -25,7 +24,7 @@ int nat_tcp_v4_init(){
         printf("bootmemory allocation error\n");
         return 0;
     }
-    srand((unsigned)time(NULL));
+    srandom((unsigned)time(NULL));
     printf("nat init done!\n");
     return 0;
 }

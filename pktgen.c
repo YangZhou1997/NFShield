@@ -1,14 +1,6 @@
-#include <arpa/inet.h>
-#include <linux/if_packet.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <sys/ioctl.h>
-#include <sys/socket.h>
-#include <net/if.h>
-#include <pthread.h> 
-#include <signal.h>
-#include <sys/time.h> 
 #include <unistd.h>
 #include <stdatomic.h>
 
@@ -18,8 +10,8 @@
 // #include "./utils/pkt-puller.h" // zipf with on-flying seq gen; take small amount of memory (100k distinct packets)
 // #include "./utils/pkt-puller2.h" // preloaded normal or zipf traffic; take a lot of memory (2m packets)
 #include "./utils/pkt-puller3.h" // zipf with preloaded seq, a bit faster than the first; modest memory (100k distinct packets, and 2m seq number)
-#include "./utils/raw_socket.h"
-#include "./utils/parsing_mac.h"
+#include "./utils/raw_icenet.h"
+#include "config.h"
 
 #define MAX_WAITING_CYCLES 2999538 // this is from empirical tests 
 
@@ -30,24 +22,19 @@ static atomic_ullong received_pkts[4] = {0,0,0,0};
 static atomic_ullong lost_pkts[4] = {0,0,0,0};
 
 static atomic_uchar force_quit[4];
-
-static uint8_t dstmac[6];
-__thread int sockfd  = 0;
-__thread struct sockaddr_ll send_sockaddr;
-__thread struct ifreq if_mac;
-
 static atomic_uchar print_order = 0;
 static atomic_uchar finished_nfs = 0;
 static atomic_ullong invalid_pkts = 0;
-int num_nfs = 1;
 
 __thread pkt_t* pkt_buf_recv[MAX_BATCH_SIZE];
 __thread uint8_t warmup_end_recv = 0;
 __thread uint64_t lost_pkt_during_cold_start;
 
+static int num_nfs = 1;
+
 void try_recv_pkt(int nf_idx){
     // try to receive a batch of packets. This call is non-blocking
-    int numpkts_recv = recvfrom_batch(sockfd, BUF_SIZ, pkt_buf_recv);
+    int numpkts_recv = recvfrom_batch(nf_idx, BUF_SIZ, pkt_buf_recv);
     if(numpkts_recv <= 0){
         return;
     }
@@ -96,44 +83,26 @@ void try_recv_pkt(int nf_idx){
     }
 }
 
+pkt_t* pkt_buf_all[NCORES][MAX_BATCH_SIZE];
 void *send_pkt_func(void *arg) {
 	// which nf's traffic this thread sends
     int nf_idx = *(int*)arg;
-    set_affinity(nf_idx);
-    init_socket(&sockfd, &send_sockaddr, &if_mac, dstmac, nf_idx);
-
+    pkt_t** pkt_buf = pkt_buf_all[nf_idx];
+    
     // sending-related variables        
-    struct ether_hdr* eh;
+    uint64_t* pkt_bytes;
     for(int i = 0; i < PKT_NUM; i++){
-        eh = (struct ether_hdr*) pkts[i].content;
-        /* Ethernet header */
-        eh->s_addr.addr_bytes[0] = ((uint8_t *)&if_mac.ifr_hwaddr.sa_data)[0];
-    	eh->s_addr.addr_bytes[1] = ((uint8_t *)&if_mac.ifr_hwaddr.sa_data)[1];
-    	eh->s_addr.addr_bytes[2] = ((uint8_t *)&if_mac.ifr_hwaddr.sa_data)[2];
-    	eh->s_addr.addr_bytes[3] = ((uint8_t *)&if_mac.ifr_hwaddr.sa_data)[3];
-    	eh->s_addr.addr_bytes[4] = ((uint8_t *)&if_mac.ifr_hwaddr.sa_data)[4];
-    	eh->s_addr.addr_bytes[5] = ((uint8_t *)&if_mac.ifr_hwaddr.sa_data)[5];
-    	eh->d_addr.addr_bytes[0] = dstmac[0];
-    	eh->d_addr.addr_bytes[1] = dstmac[1];
-    	eh->d_addr.addr_bytes[2] = dstmac[2];
-    	eh->d_addr.addr_bytes[3] = dstmac[3];
-    	eh->d_addr.addr_bytes[4] = dstmac[4];
-    	eh->d_addr.addr_bytes[5] = dstmac[5];
-    	/* Ethertype field */
-    	eh->ether_type = htons(ETH_P_IP);
+        pkt_bytes = (uint64_t*)pkts[i].content;
+        pkt_bytes[0] = MAC_NFTOP << 16;
+        pkt_bytes[1] = MAC_PKTGEN | ((uint64_t)htons(ETH_P_IP) << 48);
     }
-    pkt_t* pkt_buf[MAX_BATCH_SIZE];
 
     struct timeval start, end; 
     uint64_t burst_size;
     struct tcp_hdr *tcph;
     uint8_t warmup_end = 0;
 
-    // receiving-related variables
-    for(int i = 0; i < MAX_BATCH_SIZE; i++){
-        pkt_buf_recv[i] = malloc(sizeof(pkt_t));
-        pkt_buf_recv[i]->content = malloc(BUF_SIZ);
-    }
+    struct ether_hdr* eh;
 
     gettimeofday(&start, NULL);
 
@@ -171,7 +140,7 @@ void *send_pkt_func(void *arg) {
             sent_pkts_size[nf_idx] += pkt_buf[i]->len + 20;
         }
 
-        sendto_batch(sockfd, burst_size, pkt_buf, &send_sockaddr);
+        sendto_batch(nf_idx, burst_size, pkt_buf);
         sent_pkts[nf_idx] += burst_size;
 
         try_recv_pkt(nf_idx);
@@ -196,12 +165,7 @@ void *send_pkt_func(void *arg) {
     time_taken = (end.tv_sec - start.tv_sec) * 1e6; 
     time_taken = (time_taken + (end.tv_usec - start.tv_usec)) * 1e-6;
 
-	close(sockfd);
-
-    for(int i = 0; i < MAX_BATCH_SIZE; i++){
-        free(pkt_buf_recv[i]->content);
-        free(pkt_buf_recv[i]);
-    }
+	close(nf_idx);
 
     finished_nfs++;
     while(print_order != nf_idx || finished_nfs != num_nfs){
@@ -221,19 +185,7 @@ void *send_pkt_func(void *arg) {
     // pthread_exit(NULL);
 }
 
-static void signal_handler(int signum)
-{
-	if (signum == SIGINT || signum == SIGTERM) {
-		printf("\n\nSignal %d received, preparing to exit...\n",
-				signum);
-        for(int i = 0; i < 4; i++){
-    		force_quit[i] = 1;
-        }
-	}
-}
-
-int main(int argc, char *argv[]){
-    signal(SIGINT, signal_handler);
+void thread_entry(int cid, int nc){
     for(int i = 0; i < 4; i++){
 		force_quit[i] = 0;
     }
@@ -244,46 +196,20 @@ int main(int argc, char *argv[]){
     // for pkt_puller and pkt_puller3;
     char * tracepath = "./data/ictf2010_100kflow.dat";
     
-    int option;
-    while((option = getopt(argc, argv, ":n:t:d:")) != -1){
-        switch (option) {
-            case 'n':
-                num_nfs = atoi(optarg);
-                printf("number of NFs: %d\n", num_nfs);
-                break;
-            case 't':
-                tracepath = optarg;
-                printf("trace path: %s\n", tracepath);
-                break;
-            case 'd':
-                parse_mac(dstmac, optarg);
-                printf("dstmac: %02x:%02x:%02x:%02x:%02x:%02x\n", dstmac[0], dstmac[1], dstmac[2], dstmac[3], dstmac[4], dstmac[5]);
-                break;
-             case ':':  
-                printf("option -%c needs a value\n", optopt);  
-                break;  
-            case '?':  
-                printf("unknown option: -%c\n", optopt); 
-                break; 
-        }
-    }
+    num_nfs = NUM_NFS;
+
     if (num_nfs > 4) {
        printf("Only support num_nfs <= 4!");
        exit(0);
     }
-
-    load_pkt(tracepath);
-
-    pthread_t threads[4];
-    int nf_idx[4] = {0, 1, 2, 3};
-    for(int i = 0; i < num_nfs; i ++){
-        pthread_create(&threads[i], NULL, send_pkt_func, (void*)(nf_idx+i));
+    if (cid > num_nfs) {
+        return;
     }
     
-    for(int i = 0; i < num_nfs; i ++){
-        pthread_join(threads[i], NULL);
-    }
+    // only one core needs to load the trace
+    load_pkt(tracepath);
 
-    return 0;
+    int nf_idx[4] = {0, 1, 2, 3};
+    send_pkt_func((void*)(nf_idx + cid));
 }
     

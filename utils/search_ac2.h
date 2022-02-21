@@ -31,7 +31,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
 
 /*
 *   DEFINES and Typedef's
@@ -2995,25 +2994,24 @@ static inline int acsmDumpSparseDFA_Banded(ACSM_STRUCT2 * acsm, FILE * f)
     fclose(f);
 }
 
-
-static inline int acsmRestoreSparseDFA_Banded(ACSM_STRUCT2 * acsm, FILE * f)
+static inline int acsmRestoreSparseDFA_Banded(ACSM_STRUCT2 * acsm, MY_FILE * f)
 {
     ACSM_PATTERN2   * mlist;
 
-    fread(&acsm->acsmMaxStates, sizeof(int), 1, f);
+    my_fread(&acsm->acsmMaxStates, sizeof(int), 1, f);
     printf("acsmMaxStates: %d\n", acsm->acsmMaxStates);
-    fread(&acsm->acsmNumStates, sizeof(int), 1, f);
+    my_fread(&acsm->acsmNumStates, sizeof(int), 1, f);
     printf("acsmNumStates: %d\n", acsm->acsmNumStates);
 
     unsigned int NextStateSize = acsm->acsmNumStates;
     acsm->acsmNextState = malloc(sizeof(acstate_t *) * NextStateSize);
     acstate_t * ps = malloc(sizeof(acstate_t) * 4);
     for(int i = 0; i < NextStateSize; i++){
-        fread(ps, sizeof(acstate_t), 4, f);
+        my_fread(ps, sizeof(acstate_t), 4, f);
         int cnt = ps[2];
         acsm->acsmNextState[i] = malloc(sizeof(acstate_t) * (4 + cnt));
         memcpy(acsm->acsmNextState[i], ps, sizeof(acstate_t) * 4);
-        fread(acsm->acsmNextState[i] + 4, sizeof(acstate_t), cnt, f);
+        my_fread(acsm->acsmNextState[i] + 4, sizeof(acstate_t), cnt, f);
         // printf("restore: %u %u %u %u\n", ps[0], ps[1], ps[2], ps[3]);
     }
     free(ps);
@@ -3022,20 +3020,18 @@ static inline int acsmRestoreSparseDFA_Banded(ACSM_STRUCT2 * acsm, FILE * f)
     acsm->acsmMatchList = malloc(sizeof(ACSM_PATTERN2 *) * MatchListSize);
     char flag = 0;
     for(int i = 0; i < MatchListSize; i++){
-        fread(&flag, sizeof(char), 1, f);
+        my_fread(&flag, sizeof(char), 1, f);
         // printf("%d", (int)flag);
         if(flag){
             acsm->acsmMatchList[i] = malloc(sizeof(ACSM_PATTERN2) * 1);
-            fread(acsm->acsmMatchList[i], sizeof(ACSM_PATTERN2), 1, f);
+            my_fread(acsm->acsmMatchList[i], sizeof(ACSM_PATTERN2), 1, f);
             // printf("%d\n", acsm->acsmMatchList[i]->n);
         }
         else{
             acsm->acsmMatchList[i] = NULL;
         }
     }
-    fread(xlatcase, sizeof(unsigned char), 256, f);
-
-    fclose(f);
+    my_fread(xlatcase, sizeof(unsigned char), 256, f);
 }
 
 /*

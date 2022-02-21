@@ -1,12 +1,6 @@
 #ifndef __PKT_PULLER_H__
 #define __PKT_PULLER_H__
 
-#ifdef	__cplusplus
-/* *INDENT-OFF* */
-extern "C" {
-/* *INDENT-ON* */
-#endif
-
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -69,11 +63,5 @@ pkt_t *next_pkt(uint8_t nf_idx){
     seq_idx[nf_idx] = (seq_idx[nf_idx] + 1) & (TOTAL_SEQ - 1);
     return curr_pkt;
 }
-
-#ifdef	__cplusplus
-/* *INDENT-OFF* */
-}
-/* *INDENT-ON* */
-#endif
 
 #endif /* __PKT_PULLER_H__ */

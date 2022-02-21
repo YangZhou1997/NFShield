@@ -4,6 +4,12 @@
 
 #define ETHER_ADDR_LEN  6 /**< Length of Ethernet address. */
 #define ETHER_TYPE_LEN  2 /**< Length of Ethernet type field. */
+#define NET_IP_ALIGN 2 /**< this is only used for icenet. */
+
+#define ETH_MAX_WORDS 190
+#define ETH_HEADER_SIZE 14
+#define MAC_ADDR_SIZE 6
+#define IP_ADDR_SIZE 4
 
 struct ether_addr {
 	uint8_t addr_bytes[ETHER_ADDR_LEN]; /**< Addr bytes in tx order */
@@ -14,7 +20,6 @@ struct ether_hdr {
 	struct ether_addr s_addr; /**< Source address. */
 	uint16_t ether_type;      /**< Frame type. */
 } __attribute__((__packed__));
-
 
 struct ipv4_hdr {
 	uint8_t  version_ihl;		/**< version and header length */
@@ -45,7 +50,7 @@ struct tcp_hdr {
 typedef struct _pkt
 {
     uint16_t len;
-    uint8_t * content;
+    uint8_t content[ETH_MAX_WORDS * 8];
 }pkt_t;
 
 #endif // __PKT_HEADER__
