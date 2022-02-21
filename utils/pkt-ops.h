@@ -8,12 +8,6 @@
 #include "fnv64.h"
 #include "common.h"
 
-#ifdef	__cplusplus
-/* *INDENT-OFF* */
-extern "C" {
-/* *INDENT-ON* */
-#endif
-
 static inline void
 swap_mac_addr(uint8_t *pkt_ptr)
 {
@@ -147,12 +141,5 @@ void get_five_tuple(uint8_t *pkt_ptr, five_tuple_t *key)
     key->dstport = get_dst_port(pkt_ptr);
     key->proto = get_proto(pkt_ptr);
 }
-
-
-#ifdef	__cplusplus
-/* *INDENT-OFF* */
-}
-/* *INDENT-ON* */
-#endif
 
 #endif /* __PKT_HDR_OPS_H__ */

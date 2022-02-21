@@ -1,12 +1,6 @@
 #ifndef __LPM_ALGO_H
 #define __LPM_ALGO_H
 
-#ifdef	__cplusplus
-/* *INDENT-OFF* */
-extern "C" {
-/* *INDENT-ON* */
-#endif
-
 #include <stdint.h>
 #include <stdio.h>
 #include "common.h" 
@@ -191,12 +185,5 @@ inline uint16_t lpm_lookup(iplookup_t *iplookup, uint32_t ip)
         return t24entry;
     }
 }
-
-
-#ifdef	__cplusplus
-/* *INDENT-OFF* */
-}
-/* *INDENT-ON* */
-#endif
 
 #endif//__LPM_ALGO_H

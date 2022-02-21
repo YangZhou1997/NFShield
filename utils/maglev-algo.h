@@ -1,12 +1,6 @@
 #ifndef __MAGLEV_HASH_H__
 #define __MAGLEV_HASH_H__
 
-#ifdef	__cplusplus
-/* *INDENT-OFF* */
-extern "C" {
-/* *INDENT-ON* */
-#endif
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -44,7 +38,7 @@ int maglev_init_inner(char *table_name, uint32_t lookup_entry_num, uint32_t back
 
     total_size = lookup_entry_num * sizeof(int) + backend_num * (sizeof(uint32_t) + sizeof(uint32_t) * lookup_entry_num + sizeof(uint8_t) + sizeof(uint32_t));
 
-    block_ptr = zmalloc(total_size, ALIGN, table_name);
+    block_ptr = malloc(total_size);
     if(block_ptr == NULL)
         return -1;
 
@@ -153,12 +147,5 @@ uint32_t maglev_get_backend(maglev_meta_t *mag_ptr, five_tuple_t key)
 
     return mag_ptr->backend_ip[backend_index];
 }
-
-
-#ifdef	__cplusplus
-/* *INDENT-OFF* */
-}
-/* *INDENT-ON* */
-#endif
 
 #endif /* __MAGLEV_HASH_H__ */

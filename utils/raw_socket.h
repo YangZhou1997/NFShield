@@ -1,7 +1,6 @@
 #ifndef __RAW_SOCKET_
 #define __RAW_SOCKET_
 
-
 #include <arpa/inet.h>
 #include <linux/if_packet.h>
 #include <stdio.h>
@@ -14,21 +13,7 @@
 #include <sys/time.h> 
 #include <unistd.h>
 #include "pkt-header.h"
-
-#define DEFAULT_IF	"eth0"
-#define ETH_P_IP	0x0800		/* Internet Protocol packet	*/
-#define ETH_P_ALL	0x0003		/* Every packet (be careful!!!) */
-#define ETH_ALEN	6		/* Octets in one ethernet addr	 */
-
-#define BUF_SIZ		1536
-#define MAX_BATCH_SIZE 32
-
-#define WARMUP_NPKTS (1*50*1024)
-#define TEST_NPKTS (2*50*1024)
-#define MAX_UNACK_WINDOW 512
-
-#define CUSTOM_PROTO_BASE 0x1234
-// #define CUSTOM_PROTO_BASE 0
+#include "common.h"
 
 void init_socket(int *sockfd_p, struct sockaddr_ll* send_sockaddr, struct ifreq *if_mac_p, uint8_t dstmac[], int nf_idx){
     // setup socket for receiving packets.

@@ -1,14 +1,10 @@
 #ifndef __COMMON_H__
 #define __COMMON_H__
 
-#ifdef	__cplusplus
-/* *INDENT-OFF* */
-extern "C" {
-/* *INDENT-ON* */
-#endif
 #include <stdint.h>
-#include <pthread.h>
-#include <sched.h>
+#include <stdlib.h>
+// #include <pthread.h>
+// #include <sched.h>
 
 #define U32 0
 #define U16 1
@@ -56,29 +52,60 @@ typedef struct
 #define CMS_SH3 52757
 #define CMS_SH4 83233
 
-int set_affinity(uint32_t cpu_id){
-    cpu_set_t cpuset;
-    CPU_ZERO(&cpuset);
-    CPU_SET(cpu_id, &cpuset);
-    pthread_t thread = pthread_self();
-    return pthread_setaffinity_np(thread, sizeof(cpuset), &cpuset);
-}
+// int set_affinity(uint32_t cpu_id){
+//     cpu_set_t cpuset;
+//     CPU_ZERO(&cpuset);
+//     CPU_SET(cpu_id, &cpuset);
+//     pthread_t thread = pthread_self();
+//     return pthread_setaffinity_np(thread, sizeof(cpuset), &cpuset);
+// }
 
-inline void barrier(){
-    asm volatile("": : :"memory");
-}
+// inline void barrier(){
+//     asm volatile("": : :"memory");
+// }
 
-// only work on X86
-inline uint64_t rdtsc(){
-	uint32_t a, d;
-	asm volatile("rdtsc" : "=a" (a), "=d" (d));
-	return ((uint64_t)a) | (((uint64_t)d) << 32);
-}
+// // only work on X86
+// inline uint64_t rdtsc(){
+// 	uint32_t a, d;
+// 	asm volatile("rdtsc" : "=a" (a), "=d" (d));
+// 	return ((uint64_t)a) | (((uint64_t)d) << 32);
+// }
 
-#ifdef	__cplusplus
-/* *INDENT-OFF* */
+#define CPU_GHZ (3.2)
+#define BUF_SIZ		1536
+#define MAX_BATCH_SIZE 32
+
+#define WARMUP_NPKTS (1*50*1024)
+#define TEST_NPKTS (2*50*1024)
+#define MAX_UNACK_WINDOW 512
+
+#define DEFAULT_IF	"eth0"
+#define ETH_P_IP	0x0800		/* Internet Protocol packet	*/
+#define ETH_P_ALL	0x0003		/* Every packet (be careful!!!) */
+#define ETH_ALEN	6		/* Octets in one ethernet addr	 */
+
+#define CUSTOM_PROTO_BASE 0x1234
+
+// the following is to facilitate parsing embedded file.h 
+typedef struct {
+    unsigned char * file_data;
+    unsigned long long file_size;
+    unsigned long long cur_read_pos;
+} MY_FILE;
+
+void init_my_fread(unsigned char * file_data, unsigned long long file_size, MY_FILE* file) {
+    file->file_data = file_data;
+    file->file_size = file_size;
+    file->cur_read_pos = 0;
 }
-/* *INDENT-ON* */
-#endif
+size_t my_fread(void * ptr, size_t size, size_t n, MY_FILE* file) {
+    size_t read_size = size * n;
+    if (read_size + file->cur_read_pos > file->file_size) {
+        return 0;
+    }
+    memcpy(ptr, file->file_data + file->cur_read_pos, read_size);
+    file->cur_read_pos += read_size;
+    return read_size;
+}
 
 #endif /* __COMMON_H__ */

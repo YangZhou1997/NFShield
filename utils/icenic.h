@@ -15,6 +15,7 @@
 #define NIC_COUNT_RECV_COMP 24
 
 #include "mmio.h"
+#include "pkt-header.h"
 
 static inline int nic_send_req_avail(void)
 {
@@ -145,54 +146,10 @@ static inline uint64_t htonl(uint64_t nint)
 	return ntohl(nint);
 }
 
-#define NET_IP_ALIGN 2
-#define ETH_MAX_WORDS 258
-#define ETH_HEADER_SIZE 14
-#define MAC_ADDR_SIZE 6
-#define IP_ADDR_SIZE 4
 
 #define LNIC_HEADER_SIZE 30
 
-struct eth_header {
-        uint8_t pad[NET_IP_ALIGN];
-        uint8_t dst_mac[MAC_ADDR_SIZE];
-        uint8_t src_mac[MAC_ADDR_SIZE];
-        uint16_t ethtype;
-};
-
-struct arp_header {
-        uint16_t htype;
-        uint16_t ptype;
-        uint8_t hlen;
-        uint8_t plen;
-        uint16_t oper;
-        uint8_t sha[MAC_ADDR_SIZE];
-        uint8_t spa[IP_ADDR_SIZE];
-        uint8_t tha[MAC_ADDR_SIZE];
-        uint8_t tpa[IP_ADDR_SIZE];
-};
-
-struct ipv4_header {
-        uint8_t ver_ihl;
-        uint8_t dscp_ecn;
-        uint16_t length;
-        uint16_t ident;
-        uint16_t flags_frag_off;
-        uint8_t ttl;
-        uint8_t proto;
-        uint16_t cksum;
-        uint32_t src_addr;
-        uint32_t dst_addr;
-};
-
-struct icmp_header {
-        uint8_t type;
-        uint8_t code;
-        uint16_t cksum;
-        uint32_t rest;
-};
-
-struct lnic_header {
+struct lnic_hdr {
 	uint8_t flags;
 	uint16_t src;
 	uint16_t dst;
@@ -277,9 +234,9 @@ static int nic_wait_recv()
  * Receive and parse Eth/IP/LNIC headers.
  * Only return once lnic pkt is received.
  */
-static int nic_recv_lnic(void *buf, struct lnic_header **lnic)
+static int nic_recv_lnic(void *buf, struct lnic_hdr **lnic)
 {
-  struct ipv4_header *ipv4;
+  struct ipv4_hdr *ipv4;
   int len;
 
   // receive pkt
@@ -287,7 +244,7 @@ static int nic_recv_lnic(void *buf, struct lnic_header **lnic)
 
   ipv4 = buf + ETH_HEADER_SIZE;
   // parse lnic hdr
-  int ihl = ipv4->ver_ihl & 0xf;
+  int ihl = ipv4->version_ihl & 0xf;
   *lnic = (void *)ipv4 + (ihl << 2);
   return len;
 }
@@ -297,14 +254,14 @@ static int nic_recv_lnic(void *buf, struct lnic_header **lnic)
  */
 static int swap_eth(void *buf)
 {
-  struct eth_header *eth;
+  struct ether_hdr *eth;
   uint8_t tmp_mac[MAC_ADDR_SIZE];
 
   eth = buf;
   // swap addresses
-  memcpy(tmp_mac, eth->dst_mac, MAC_ADDR_SIZE);
-  memcpy(eth->dst_mac, eth->src_mac, MAC_ADDR_SIZE);
-  memcpy(eth->src_mac, tmp_mac, MAC_ADDR_SIZE);
+  memcpy(tmp_mac, eth->d_addr.addr_bytes, MAC_ADDR_SIZE);
+  memcpy(eth->d_addr.addr_bytes, eth->s_addr.addr_bytes, MAC_ADDR_SIZE);
+  memcpy(eth->s_addr.addr_bytes, tmp_mac, MAC_ADDR_SIZE);
 
   return 0;
 }
@@ -314,15 +271,15 @@ static int swap_eth(void *buf)
  */
 static int swap_addresses(void *buf)
 {
-  struct eth_header *eth;
-  struct ipv4_header *ipv4;
-  struct lnic_header *lnic;
+  struct ether_hdr *eth;
+  struct ipv4_hdr *ipv4;
+  struct lnic_hdr *lnic;
   uint32_t tmp_ip_addr;
   uint16_t tmp_lnic_addr;
 
   eth = buf;
   ipv4 = buf + ETH_HEADER_SIZE;
-  int ihl = ipv4->ver_ihl & 0xf;
+  int ihl = ipv4->version_ihl & 0xf;
   lnic = (void *)ipv4 + (ihl << 2);
 
   // swap eth/ip/lnic src and dst
@@ -350,9 +307,9 @@ static void nic_boot_pkt(void) {
   unsigned long len = BOOT_PKT_LEN;
   uint8_t buf[BOOT_PKT_LEN];
 
-  struct eth_header *eth;
-  struct ipv4_header *ipv4;
-  struct lnic_header *lnic;
+  struct ether_hdr *eth;
+  struct ipv4_hdr *ipv4;
+  struct lnic_hdr *lnic;
 
   uint64_t macaddr_long;
   uint8_t *macaddr;
@@ -365,18 +322,18 @@ static void nic_boot_pkt(void) {
   lnic = (void *)ipv4 + 20;
 
   // Fill out header fields
-  memset(&(eth->dst_mac), 0, MAC_ADDR_SIZE);
-  memcpy(&(eth->src_mac), macaddr, MAC_ADDR_SIZE);
-  eth->ethtype = htons(IPV4_ETHTYPE);
+  memset(&(eth->d_addr), 0, MAC_ADDR_SIZE);
+  memcpy(&(eth->s_addr), macaddr, MAC_ADDR_SIZE);
+  eth->ether_type = htons(IPV4_ETHTYPE);
 
-  ipv4->ver_ihl = 0x45;
-  ipv4->dscp_ecn = 0;
-  ipv4->length = htons(BOOT_PKT_LEN - ETH_HEADER_SIZE);
-  ipv4->ident = htons(1);
-  ipv4->flags_frag_off = htons(0);
-  ipv4->ttl = 64;
-  ipv4->proto = LNIC_PROTO;
-  ipv4->cksum = 0; // NOTE: not implemented
+  ipv4->version_ihl = 0x45;
+  ipv4->type_of_service = 0;
+  ipv4->total_length = htons(BOOT_PKT_LEN - ETH_HEADER_SIZE);
+  ipv4->packet_id = htons(1);
+  ipv4->fragment_offset = htons(0);
+  ipv4->time_to_live = 64;
+  ipv4->next_proto_id = LNIC_PROTO;
+  ipv4->hdr_checksum = 0; // NOTE: not implemented
   ipv4->src_addr = htoni(0);
   ipv4->dst_addr = htoni(0);
 

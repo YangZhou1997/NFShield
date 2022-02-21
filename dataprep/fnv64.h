@@ -61,11 +61,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #define HAVE_64BIT_LONG_LONG
 #define NO_FNV_GCC_OPTIMIZATION
 
@@ -319,10 +314,5 @@ fnv_64a_str(char *str, Fnv64_t hval)
     /* return our new hash value */
     return hval;
 }
-
-#ifdef __cplusplus
-}
-#endif
-
 
 #endif//__FNV64_H

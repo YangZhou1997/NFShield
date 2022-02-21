@@ -144,7 +144,7 @@ static void build_five_tuple(char *file_path, uint64_t npkt)
 
 int main()
 {
-    srand((unsigned)time(NULL));
+    srandom((unsigned)time(NULL));
     char *file_path = "../../normal_traffic/ictf2010.dat";
     build_five_tuple(file_path, 2 * 1024 * 1024);
 

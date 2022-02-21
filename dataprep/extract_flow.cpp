@@ -256,7 +256,7 @@ static void build_pkt_content(char *file_path, uint64_t npkt)
 
 int main()
 {
-    srand((unsigned)time(NULL));
+    srandom((unsigned)time(NULL));
     char *file_path = "../../normal_traffic/ictf2010.dat";
     build_five_tuple(file_path, 1000 * 1024 * 1024);
     printf("pkt num: %lu\n", mp.size());

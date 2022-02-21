@@ -1,14 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <arpa/inet.h>
 #include <string.h>
 
 #include "../utils/common.h"
 #include "../utils/pkt-ops.h"
 #include "../utils/common.h"
-#include "../utils/pkt-puller.h"
 #include "../utils/search_ac2.h"
-// #define AC_DUMP
+#include "../data_embed/ac.h"
+// const unsigned long long fsize_ac_raw = 220991739L;
+// const unsigned char file_ac_raw[] = {0x1,0x1,0x1,0x1,0x1,0x1,0x1,0x1};
 
 static ACSM_STRUCT2 *acsm;
 static uint32_t match_total_dpi = 0;
@@ -50,12 +50,12 @@ int dpi_init(){
     FILE * f_dump = fopen("./data/ac.raw", "w");
     acsmDumpSparseDFA_Banded(acsm, f_dump);
 #else
-    FILE * f_restore = fopen("./data/ac.raw", "r");
-    acsmRestoreSparseDFA_Banded(acsm, f_restore);
-    // printf("ac restore done!\n");
+    MY_FILE f_restore;
+    init_my_fread(file_ac_raw, fsize_ac_raw, &f_restore);
+    acsmRestoreSparseDFA_Banded(acsm, &f_restore);
 #endif
 
-    srand((unsigned)time(NULL));
+    srandom((unsigned)time(NULL));
     printf("dpi init done!\n");
     return 0;
 }

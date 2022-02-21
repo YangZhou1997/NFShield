@@ -84,12 +84,6 @@ struct pcaprec_hdr {
 #ifndef __COMMON_H__
 #define __COMMON_H__
 
-#ifdef	__cplusplus
-/* *INDENT-OFF* */
-extern "C" {
-/* *INDENT-ON* */
-#endif
-
 // enum value_type{U32, U16, TUPLE, BOOL};
 
 #define U32 0
@@ -132,11 +126,5 @@ typedef struct
 #define CMS_SH2 30169
 #define CMS_SH3 52757
 #define CMS_SH4 83233
-
-#ifdef	__cplusplus
-/* *INDENT-OFF* */
-}
-/* *INDENT-ON* */
-#endif
 
 #endif /* __COMMON_H__ */

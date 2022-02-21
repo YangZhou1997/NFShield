@@ -4,9 +4,9 @@
 #include <stdint.h>
 #include <time.h>
 
-#include "mmio.h"
-#include "encoding.h"
-#include "icenic.h"
+#include "../utils/mmio.h"
+#include "../utils/encoding.h"
+#include "../utils/icenic.h"
 #include "common.h"
 
 uint64_t out_packets[NPACKETS][PACKET_WORDS];
