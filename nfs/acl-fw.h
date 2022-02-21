@@ -202,7 +202,7 @@ void acl_fw(uint8_t *pkt_ptr){
     // }
 #ifdef FW_DUMP    
     if(pkt_cnt_acl_fw == 1024 * 1024) {
-        bool_dleft_dump(&ht_meta_acl_fw_cache, "./data/acl_fw_hashmap_dleft.raw");
+        bool_dleft_dump(&ht_meta_acl_fw_cache, "./data/acl-fw-hashmap-dleft.raw");
         break;
     }
 #endif
