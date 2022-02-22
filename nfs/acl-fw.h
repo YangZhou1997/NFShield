@@ -11,10 +11,10 @@
 #undef TYPE_STR
 #undef TYPED_NAME
 #include "../utils/pkt-ops.h"
-#include "../data_embed/acl_fw_hashmap_dleft.h"
-// const unsigned long long fsize_acl_fw_hashmap_dleft_raw = 1153138L;
-// const unsigned char file_acl_fw_hashmap_dleft_raw[] = {
-// 0x0a,0x0d,0x6e,0x6d,0x0a,0x10,0x05,0x05,0x9e,0xda,0x00,0x50,0x06,0x01,0x0a,0x0f};
+// #include "../data_embed/acl_fw_hashmap_dleft.h"
+const unsigned long long fsize_acl_fw_hashmap_dleft_raw = 1153138L;
+const unsigned char file_acl_fw_hashmap_dleft_raw[] = {
+0x0a,0x0d,0x6e,0x6d,0x0a,0x10,0x05,0x05,0x9e,0xda,0x00,0x50,0x06,0x01,0x0a,0x0f};
 
 // 200000 / 0.875, make sure we use the same about of memory as netbricks.
 #define HT_SIZE_ACL_FW 228571

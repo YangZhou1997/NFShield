@@ -18,43 +18,7 @@ extern volatile uint64_t fromhost;
 
 #define NCORES 4
 
-typedef struct {
-  volatile unsigned int lock;
-} arch_spinlock_t;
-
-#define arch_spin_is_locked(x) ((x)->lock != 0)
-
-static inline void arch_spin_unlock(arch_spinlock_t *lock) {
-  asm volatile (
-    "amoswap.w.rl x0, x0, %0"
-    : "=A" (lock->lock)
-    :: "memory"
-    );
-}
-
-static inline int arch_spin_trylock(arch_spinlock_t* lock) {
-  int tmp = 1, busy;
-  asm volatile (
-    "amoswap.w.aq %0, %2, %1"
-    : "=r"(busy), "+A" (lock->lock)
-    : "r"(tmp)
-    : "memory"
-    );
-  return !busy;
-}
-
-static inline void arch_spin_lock(arch_spinlock_t* lock) {
-  while (1) {
-    if (arch_spin_is_locked(lock)) {
-      continue;
-    }
-    if (arch_spin_trylock(lock)) {
-      break;
-    }
-  }
-}
-
-arch_spinlock_t init_lock, exit_lock, print_lock, alloc_lock;
+arch_spinlock_t exit_lock, print_lock, alloc_lock;
 int num_exited = 0;
 
 void co_exit(int err) {
@@ -1014,3 +978,80 @@ char *strstr(const char *searchee, const char *lookfor)
 
   return (char *) NULL;
 }
+
+// borrowed from https://github.com/embeddedartistry/libc/blob/master/src/string/strtok.c
+
+ char* __strtok_r(char* /*s*/ /*s*/, const char* /*delim*/ /*delim*/, char** /*last*/ /*last*/);
+ 
+ char* __strtok_r(char* s, const char* delim, char** last)
+ {
+     char *spanp, *tok;
+     int c, sc;
+ 
+     if(s == NULL && (s = *last) == NULL)
+     {
+         {
+             return (NULL);
+         }
+     }
+ 
+ /*
+  * Skip (span) leading delimiters (s += strspn(s, delim), sort of).
+  */
+ cont:
+     c = *s++;
+     for(spanp = (char*)(uintptr_t)delim; (sc = *spanp++) != 0;)
+     {
+         if(c == sc)
+         {
+             {
+                 goto cont;
+             }
+         }
+     }
+ 
+     if(c == 0)
+     { /* no non-delimiter characters */
+         *last = NULL;
+         return (NULL);
+     }
+     tok = s - 1;
+ 
+     /*
+      * Scan token (scan for delimiters: s += strcspn(s, delim), sort of).
+      * Note that delim must have one NUL; we stop if we see that, too.
+      */
+     for(;;)
+     {
+         c = *s++;
+         spanp = (char*)(uintptr_t)delim;
+         do
+         {
+             if((sc = *spanp++) == c)
+             {
+                 if(c == 0)
+                 {
+                     {
+                         s = NULL;
+                     }
+                 }
+                 else
+                 {
+                     {
+                         s[-1] = '\0';
+                     }
+                 }
+                 *last = s;
+                 return (tok);
+             }
+         } while(sc != 0);
+     }
+     /* NOTREACHED */
+ }
+ 
+ char* strtok(char* s, const char* delim)
+ {
+     static char* last;
+ 
+     return (__strtok_r(s, delim, &last));
+ }

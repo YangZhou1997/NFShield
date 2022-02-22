@@ -18,7 +18,7 @@ default: $(addsuffix .riscv,$(TEST_PROGS))
 	mkdir -p ${FIRESIM}/nf_workloads
 	cp $@ ${FIRESIM}/nf_workloads
 
-%.o: %.c ./utils/util.h ./utils/encoding.h ./utils/mmio.h ./utils/icenic.h
+%.o: %.c config.h ./utils/* ./nfs/*
 	$(CC) $(CFLAGS) -c $< -o $@
 
 syscalls.o: ./utils/syscalls.c

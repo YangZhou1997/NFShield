@@ -72,4 +72,40 @@ static void __attribute__((noinline)) barrier(int ncores)
              stringify(code), _c, _c/iter, 10*_c/iter%10, _c/_i, 10*_c/_i%10); \
   } while(0)
 
+typedef struct {
+  volatile unsigned int lock;
+} arch_spinlock_t;
+
+#define arch_spin_is_locked(x) ((x)->lock != 0)
+
+static inline void arch_spin_unlock(arch_spinlock_t *lock) {
+  asm volatile (
+    "amoswap.w.rl x0, x0, %0"
+    : "=A" (lock->lock)
+    :: "memory"
+    );
+}
+
+static inline int arch_spin_trylock(arch_spinlock_t* lock) {
+  int tmp = 1, busy;
+  asm volatile (
+    "amoswap.w.aq %0, %2, %1"
+    : "=r"(busy), "+A" (lock->lock)
+    : "r"(tmp)
+    : "memory"
+    );
+  return !busy;
+}
+
+static inline void arch_spin_lock(arch_spinlock_t* lock) {
+  while (1) {
+    if (arch_spin_is_locked(lock)) {
+      continue;
+    }
+    if (arch_spin_trylock(lock)) {
+      break;
+    }
+  }
+}
+
 #endif //__UTIL_H
