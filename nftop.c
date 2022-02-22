@@ -38,13 +38,15 @@ void *loop_func(void *arg){
     pkt_t* pkt_buf = pkt_buf_all[nf_idx];
     sockfd = nf_idx;
 
+    nic_boot_pkt(nf_idx);
+
     if(nf_init[nf_idx]() < 0){
         printf("nf_init error, exit\n");
         exit(0);
     }
 
     int numpkts = 0;
-    uint64_t start, end; 
+    uint64_t start = rdcycle(); 
     uint64_t pkt_size_sum = 0;
     uint32_t pkt_num = 0;
     while(1){
@@ -62,12 +64,8 @@ void *loop_func(void *arg){
             if(pkt_num % PRINT_INTERVAL == 0){
                 printf("%-12s (nf_idx %u): pkts received %u, avg_pkt_size %lf\n", nf_names[nf_idx], nf_idx, pkt_num, pkt_size_sum * 1.0 / pkt_num);
             }
-            if(pkt_num == WARMUP_NPKTS){
-                start = rdcycle();
-            }
-            else if(pkt_num >= WARMUP_NPKTS + TEST_NPKTS){
-                end = rdcycle();
-                double time_taken = (end - start) / CPU_GHZ * 1e-3; 
+            if(pkt_num >= TEST_NPKTS){
+                double time_taken = (rdcycle() - start) / CPU_GHZ * 1e-3; 
                 printf("%-12s (nf_idx %u): processed pkts %u, elapsed time (us) %lf, processing rate %.8lf Mpps\n", 
                     nf_names[nf_idx], nf_idx, TEST_NPKTS, time_taken, (double)(TEST_NPKTS)/time_taken);
                 // stopping the pktgen. 

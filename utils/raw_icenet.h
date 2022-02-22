@@ -8,11 +8,6 @@
 #include "common.h"
 #include "icenic.h"
 
-// nftop-server : 1st node, 00:12:6d:00:00:02
-// pktgen-client: 2nd node, 00:12:6d:00:00:03
-uint64_t MAC_NFTOP = 0x0200006d1200;
-uint64_t MAC_PKTGEN = 0x0300006d1200;
-
 int recvfrom_batch(int core_id, int buff_size, pkt_t* pkt_buf){
     int cnt = 0;
     int numbytes = 0;

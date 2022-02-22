@@ -16,6 +16,7 @@
 
 #include "mmio.h"
 #include "pkt-header.h"
+#include "common.h"
 
 static inline int nic_send_req_avail(void)
 {
@@ -299,32 +300,23 @@ static int swap_addresses(void *buf)
 /**
  * Send one LNIC pkt to indicate that the system has booted
  * and is ready to start processing pkts.
- * Some Python unit tests wait for this boot pkt to arrive
+ * The switch wait for all boot pkts from all cores to arrive
  * before starting the tests.
  */
-#define BOOT_PKT_LEN 72
-static void nic_boot_pkt(void) {
+#define BOOT_PKT_LEN 64
+static void nic_boot_pkt(int nf_idx) {
   unsigned long len = BOOT_PKT_LEN;
   uint8_t buf[BOOT_PKT_LEN];
 
   struct ether_hdr *eth;
   struct ipv4_hdr *ipv4;
-  struct lnic_hdr *lnic;
 
-  uint64_t macaddr_long;
-  uint8_t *macaddr;
-  
-  macaddr_long = ntohl(nic_macaddr());
-  macaddr = ((uint8_t *)&macaddr_long) + 2;
-
-  eth = (void *)buf;
+  eth = (void *)(buf + NET_IP_ALIGN);
   ipv4 = (void *)eth + ETH_HEADER_SIZE;
-  lnic = (void *)ipv4 + 20;
 
-  // Fill out header fields
-  memset(&(eth->d_addr), 0, MAC_ADDR_SIZE);
-  memcpy(&(eth->s_addr), macaddr, MAC_ADDR_SIZE);
-  eth->ether_type = htons(IPV4_ETHTYPE);
+  uint64_t* pkt_bytes = (uint64_t*)buf;
+  pkt_bytes[0] = MAC_NFTOP << 16;
+  pkt_bytes[1] = MAC_NFTOP | ((uint64_t)htons(ETH_P_IP) << 48);
 
   ipv4->version_ihl = 0x45;
   ipv4->type_of_service = 0;
@@ -336,16 +328,6 @@ static void nic_boot_pkt(void) {
   ipv4->hdr_checksum = 0; // NOTE: not implemented
   ipv4->src_addr = htoni(0);
   ipv4->dst_addr = htoni(0);
-
-  lnic->flags = 1; // DATA pkt
-  lnic->src = htons(0);
-  lnic->dst = htons(0);
-  lnic->msg_len = htons(BOOT_PKT_LEN - 64);
-  lnic->pkt_offset = 0;
-  lnic->pull_offset = 0;
-  lnic->msg_id = 0;
-  lnic->buf_ptr = 0;
-  lnic->buf_size_class = 0;
 
   nic_send(buf, len);
 }
