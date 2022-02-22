@@ -6,9 +6,9 @@
 #include "../utils/pkt-ops.h"
 #include "../utils/common.h"
 #include "../utils/search_ac2.h"
-#include "../data_embed/ac.h"
-// const unsigned long long fsize_ac_raw = 220991739L;
-// const unsigned char file_ac_raw[] = {0x1,0x1,0x1,0x1,0x1,0x1,0x1,0x1};
+// #include "../data_embed/ac.h"
+const unsigned long long fsize_ac_raw = 220991739L;
+const unsigned char file_ac_raw[] = {0x1,0x1,0x1,0x1,0x1,0x1,0x1,0x1};
 
 static ACSM_STRUCT2 *acsm;
 static uint32_t match_total_dpi = 0;
