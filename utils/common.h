@@ -75,7 +75,6 @@ typedef struct
 #define BUF_SIZ		1536
 #define MAX_BATCH_SIZE 32
 
-#define WARMUP_NPKTS (1*50*1024)
 #define TEST_NPKTS (2*50*1024)
 #define MAX_UNACK_WINDOW 512
 
@@ -85,6 +84,11 @@ typedef struct
 #define ETH_ALEN	6		/* Octets in one ethernet addr	 */
 
 #define CUSTOM_PROTO_BASE 0x1234
+
+// nftop-server : 1st node, 00:12:6d:00:00:02
+// pktgen-client: 2nd node, 00:12:6d:00:00:03
+uint64_t MAC_NFTOP = 0x0200006d1200;
+uint64_t MAC_PKTGEN = 0x0300006d1200;
 
 // the following is to facilitate parsing embedded file.h 
 typedef struct {
