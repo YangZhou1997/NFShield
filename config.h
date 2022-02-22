@@ -15,4 +15,4 @@
 #define MEM_TEST_ACCESS_BYTES_PER_PKT 1024
 #endif
 
-#endif // __CONFIG_H__
+#endif  // __CONFIG_H__

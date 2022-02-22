@@ -6,4 +6,4 @@
 #define TEST_CYCLES 100000000
 #define CPU_GHZ (3.2)
 
-#endif // __COMMON_H__
+#endif  // __COMMON_H__

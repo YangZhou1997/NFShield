@@ -16,28 +16,25 @@
 static u32_dleft_meta_t ht_meta_monitor;
 static uint32_t pkt_cnt_monitor = 0;
 
-int monitoring_init(){
-    if(-1 == u32_dleft_init("monitoring", HT_SIZE_MON, &ht_meta_monitor))
-    {
-        printf("bootmemory allocation error\n");
-        return 0;
-    }
-    srandom((unsigned)time(NULL));
-    printf("monitoring init done!\n");
+int monitoring_init() {
+  if (-1 == u32_dleft_init("monitoring", HT_SIZE_MON, &ht_meta_monitor)) {
+    printf("bootmemory allocation error\n");
     return 0;
+  }
+  srandom((unsigned)time(NULL));
+  printf("monitoring init done!\n");
+  return 0;
 }
-void monitoring(uint8_t *pkt_ptr){
-    swap_mac_addr(pkt_ptr);
+void monitoring(uint8_t *pkt_ptr) {
+  swap_mac_addr(pkt_ptr);
 
-    five_tuple_t flow;
-    get_five_tuple(pkt_ptr, &flow);
-    u32_dleft_add_value(&ht_meta_monitor, flow, 1);
+  five_tuple_t flow;
+  get_five_tuple(pkt_ptr, &flow);
+  u32_dleft_add_value(&ht_meta_monitor, flow, 1);
 
-    pkt_cnt_monitor ++;
-    // if(pkt_cnt_monitor % PRINT_INTERVAL == 0) {
-    //     printf("monitoring %u\n", pkt_cnt_monitor);
-    // }
+  pkt_cnt_monitor++;
+  // if(pkt_cnt_monitor % PRINT_INTERVAL == 0) {
+  //     printf("monitoring %u\n", pkt_cnt_monitor);
+  // }
 }
-void monitoring_destroy(){
-    u32_dleft_destroy(&ht_meta_monitor);
-}
+void monitoring_destroy() { u32_dleft_destroy(&ht_meta_monitor); }

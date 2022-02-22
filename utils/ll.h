@@ -19,7 +19,7 @@
 #else
 #define offsetof(TYPE, MEMBER) ((size_t) & ((TYPE*)0)->MEMBER)
 #endif
-#endif // offsetof
+#endif  // offsetof
 
 /**
  * Define container_of if we don't have it already
@@ -28,23 +28,26 @@
 #ifdef __GNUC__
 #ifndef __clang__
 // Isolate the GNU-specific expression
-#define container_of(ptr, type, member)                       \
-	__extension__ ({                                                        \
-		const __typeof__(((type*)0)->member)* __mptr = (ptr); \
-		(type*)((uintptr_t)__mptr - offsetof(type, member));  \
-	})
-#else // we are clang - avoid GNU expression
-#define container_of(ptr, type, member) ((type*)((uintptr_t)(ptr)-offsetof(type, member)))
-#endif // GNU and not clang
+#define container_of(ptr, type, member)                   \
+  __extension__({                                         \
+    const __typeof__(((type*)0)->member)* __mptr = (ptr); \
+    (type*)((uintptr_t)__mptr - offsetof(type, member));  \
+  })
+#else  // we are clang - avoid GNU expression
+#define container_of(ptr, type, member) \
+  ((type*)((uintptr_t)(ptr)-offsetof(type, member)))
+#endif  // GNU and not clang
 #else
-#define container_of(ptr, type, member) ((type*)((uintptr_t)(ptr)-offsetof(type, member)))
-#endif // not GNU
-#endif // container_of
+#define container_of(ptr, type, member) \
+  ((type*)((uintptr_t)(ptr)-offsetof(type, member)))
+#endif  // not GNU
+#endif  // container_of
 
 /** Linked list struct
  *
  * This is a doubly linked list structure.
- * The ll_t structure should be embedded in a container structure that you want to list.
+ * The ll_t structure should be embedded in a container structure that you want
+ * to list.
  *
  * Example:
  *
@@ -57,12 +60,11 @@
  * } alloc_node_t;
  * @endcode
  */
-typedef struct ll_head
-{
-	/// Pointer to the next element in the list.
-	struct ll_head* next;
-	/// Pointer to the previous element in the list.
-	struct ll_head* prev;
+typedef struct ll_head {
+  /// Pointer to the next element in the list.
+  struct ll_head* next;
+  /// Pointer to the previous element in the list.
+  struct ll_head* prev;
 } ll_t;
 
 #pragma mark - List Manipulation -
@@ -73,8 +75,8 @@ typedef struct ll_head
 /** Get the container for a list entry
  *
  * @param[in] ptr The pointer to the target ll_t node.
- * @param[in] type The struct type which contains the ll_t node. For this example struct,
- * type would refer to alloc_node_t:
+ * @param[in] type The struct type which contains the ll_t node. For this
+ * example struct, type would refer to alloc_node_t:
  * @code
  * typedef struct
  * {
@@ -84,8 +86,8 @@ typedef struct ll_head
  * } alloc_node_t;
  * @endcode
  *
- * @param[in] member The member which corresponds to the member name of the ll_t entry. For this
- * example struct, member would refer to `node`.
+ * @param[in] member The member which corresponds to the member name of the ll_t
+ * entry. For this example struct, member would refer to `node`.
  * @code
  * typedef struct
  * {
@@ -95,14 +97,16 @@ typedef struct ll_head
  * } alloc_node_t;
  * @endcode
  *
- * @returns a pointer to the struct containing the linked list node at `ptr`, cast to type `type`.
+ * @returns a pointer to the struct containing the linked list node at `ptr`,
+ * cast to type `type`.
  */
 #define list_entry(ptr, type, member) container_of(ptr, type, member)
 
 /** Get the container for the first item in the list
  *
  * @param[in] head The pointer to the head of the list.
- * @param[in] type The struct type which contains the ll_t node. For this example struct,
+ * @param[in] type The struct type which contains the ll_t node. For this
+ example struct,
  * type would refer to alloc_node_t:
  * @code
  * typedef struct
@@ -113,7 +117,8 @@ typedef struct ll_head
  * } alloc_node_t;
  * @endcode
 
- * @param[in] member The member which corresponds to the member name of the ll_t entry. For this
+ * @param[in] member The member which corresponds to the member name of the ll_t
+ entry. For this
  * example struct, member would refer to `node`.
  * @code
  * typedef struct
@@ -124,9 +129,11 @@ typedef struct ll_head
  * } alloc_node_t;
  * @endcode
  *
- * @returns a pointer to the struct containing the linked list node at `ptr`, cast to type `type`.
+ * @returns a pointer to the struct containing the linked list node at `ptr`,
+ cast to type `type`.
  */
-#define list_first_entry(head, type, member) list_entry((head)->next, type, member)
+#define list_first_entry(head, type, member) \
+  list_entry((head)->next, type, member)
 
 /// @}
 // Get containers
@@ -138,11 +145,13 @@ typedef struct ll_head
 
 /** Declare a foreach loop which iterates over the list
  *
- * list_for_each() will run as long as the current object's next pointer is not equal to the
- * head of the list. It's possible for a malformed list to loop forever.
+ * list_for_each() will run as long as the current object's next pointer is not
+ *equal to the head of the list. It's possible for a malformed list to loop
+ *forever.
  *
- * @param[in] pos The variable which will hold the current iteration's position value.
- *	This variable must be a pointer and should be pre-declared before instantiating the loop.
+ * @param[in] pos The variable which will hold the current iteration's position
+ *value. This variable must be a pointer and should be pre-declared before
+ *instantiating the loop.
  *	@code
  *	ll_t *b;
  *	list_for_each(b, &free_list)
@@ -152,18 +161,22 @@ typedef struct ll_head
  *   @endcode
  * @param[in] head The head of of the linked list. Input should be a pointer.
  */
-#define list_for_each(pos, head) for(pos = (head)->next; pos != (head); pos = pos->next)
+#define list_for_each(pos, head) \
+  for (pos = (head)->next; pos != (head); pos = pos->next)
 
-/** Declare a foreach loop which iterates over the list, copy current node pointer.
+/** Declare a foreach loop which iterates over the list, copy current node
+ *pointer.
  *
- * list_for_each_safe() will run as long as the current object's next pointer is not equal to the
- * head of the list. It's possible for a malformed list to loop forever.
+ * list_for_each_safe() will run as long as the current object's next pointer is
+ *not equal to the head of the list. It's possible for a malformed list to loop
+ *forever.
  *
- * The list_for_each_safe() variant makes a copy of the current node pointer, enabling the loop
- * to get to the next pointer if there is a deletion.
+ * The list_for_each_safe() variant makes a copy of the current node pointer,
+ *enabling the loop to get to the next pointer if there is a deletion.
  *
- * @param[in] pos The variable which will hold the current iteration's position value.
- *	This variable must be a pointer should be pre-declared before instantiating the loop.
+ * @param[in] pos The variable which will hold the current iteration's position
+ *value. This variable must be a pointer should be pre-declared before
+ *instantiating the loop.
  *	@code
  *	ll_t *b, *t;
  *	list_for_each_safe(b, t, &free_list)
@@ -171,8 +184,9 @@ typedef struct ll_head
  *	...
  * 	}
  *  @endcode
- * @param[in] n The variable which will hold the current iteration's position value **copy**.
- *	This variable must be a pointer and should be pre-declared before instantiating the loop.
+ * @param[in] n The variable which will hold the current iteration's position
+ *value **copy**. This variable must be a pointer and should be pre-declared
+ *before instantiating the loop.
  *	@code
  *	alloc_node_t *b, *t;
  *	list_for_each_safe(b, t, &free_list)
@@ -183,13 +197,14 @@ typedef struct ll_head
  * @param[in] head The head of of the linked list. Input should be a pointer.
  */
 #define list_for_each_safe(pos, n, head) \
-	for(pos = (head)->next, n = pos->next; pos != (head); pos = n, n = pos->next)
+  for (pos = (head)->next, n = pos->next; pos != (head); pos = n, n = pos->next)
 
-/** Declare a for loop which operates on each node in the list using the container value.
+/** Declare a for loop which operates on each node in the list using the
+ *container value.
  *
- * @param[in] pos The variable which will hold the current iteration's position value.
- *	This variable must be a pointer and should be pre-declared before instantiating the loop.
- *  The `pos` variable must be the container type.
+ * @param[in] pos The variable which will hold the current iteration's position
+ *value. This variable must be a pointer and should be pre-declared before
+ *instantiating the loop. The `pos` variable must be the container type.
  *	@code
  *	alloc_node_t *b, *t;
  *	list_for_each_entry(b, &free_list, node)
@@ -200,8 +215,8 @@ typedef struct ll_head
  *
  * @param[in] head The head of of the linked list. Input should be a pointer.
  *
- * @param[in] member The member which corresponds to the member name of the ll_t entry. For this
- * example struct, member would refer to `node`.
+ * @param[in] member The member which corresponds to the member name of the ll_t
+ *entry. For this example struct, member would refer to `node`.
  * @code
  * typedef struct
  * {
@@ -211,15 +226,17 @@ typedef struct ll_head
  * } alloc_node_t;
  * @endcode
  */
-#define list_for_each_entry(pos, head, member)                                            \
-	for(pos = list_entry((head)->next, __typeof__(*pos), member); &pos->member != (head); \
-		pos = list_entry(pos->member.next, __typeof__(*pos), member))
+#define list_for_each_entry(pos, head, member)                   \
+  for (pos = list_entry((head)->next, __typeof__(*pos), member); \
+       &pos->member != (head);                                   \
+       pos = list_entry(pos->member.next, __typeof__(*pos), member))
 
-/** Declare a for loop which operates on each node in the list using a copy of the container value.
+/** Declare a for loop which operates on each node in the list using a copy of
+ *the container value.
  *
- * @param[in] pos The variable which will hold the current iteration's position value.
- *	This variable must be a pointer and should be pre-declared before instantiating the loop.
- *  The `pos` variable must be the container type.
+ * @param[in] pos The variable which will hold the current iteration's position
+ *value. This variable must be a pointer and should be pre-declared before
+ *instantiating the loop. The `pos` variable must be the container type.
  *	@code
  *	alloc_node_t *b, *t;
  *	list_for_each_entry(b, &free_list, node)
@@ -227,9 +244,9 @@ typedef struct ll_head
  *	...
  * 	}
  *  @endcode
- * @param[in] n The variable which will hold the current iteration's position value **copy**.
- *	This variable must be a pointer and should be pre-declared before instantiating the loop.
- *  The `n` variable must be the container type.
+ * @param[in] n The variable which will hold the current iteration's position
+ *value **copy**. This variable must be a pointer and should be pre-declared
+ *before instantiating the loop. The `n` variable must be the container type.
  *	@code
  * typedef struct
  * {
@@ -245,8 +262,8 @@ typedef struct ll_head
  * 	}
  *   @endcode
  * @param[in] head The head of of the linked list. Input should be a pointer.
- * @param[in] member The member which corresponds to the member name of the ll_t entry. For this
- * example struct, member would refer to `node`.
+ * @param[in] member The member which corresponds to the member name of the ll_t
+ *entry. For this example struct, member would refer to `node`.
  * @code
  * typedef struct
  * {
@@ -257,9 +274,10 @@ typedef struct ll_head
  * @endcode
  */
 #define list_for_each_entry_safe(pos, n, head, member)            \
-	for(pos = list_entry((head)->next, __typeof__(*pos), member), \
-	n = list_entry(pos->member.next, __typeof__(*pos), member);   \
-		&pos->member != (head); pos = n, n = list_entry(n->member.next, __typeof__(*n), member))
+  for (pos = list_entry((head)->next, __typeof__(*pos), member),  \
+      n = list_entry(pos->member.next, __typeof__(*pos), member); \
+       &pos->member != (head);                                    \
+       pos = n, n = list_entry(n->member.next, __typeof__(*n), member))
 
 /// @}
 // End foreach
@@ -272,9 +290,7 @@ typedef struct ll_head
 /// Initialize a linked list so it points to itself
 /// @param[in] name of the linked list object
 #define ll_head_INIT(name) \
-	{                      \
-		&(name), &(name)   \
-	}
+  { &(name), &(name) }
 
 /** Initialize a linked list
  *
@@ -295,30 +311,30 @@ typedef struct ll_head
 
 /// Insert a new element between two existing elements.
 /// @param[in] n The node to add to the list.
-/// @param[in] prev The pointer to the node before where the new node will be inserted.
-/// @param[in] next The pointer to the new node after where the new node will be inserted.
-static inline void list_insert(struct ll_head* n, struct ll_head* prev, struct ll_head* next)
-{
-	next->prev = n;
-	n->next = next;
-	n->prev = prev;
-	prev->next = n;
+/// @param[in] prev The pointer to the node before where the new node will be
+/// inserted.
+/// @param[in] next The pointer to the new node after where the new node will be
+/// inserted.
+static inline void list_insert(struct ll_head* n, struct ll_head* prev,
+                               struct ll_head* next) {
+  next->prev = n;
+  n->next = next;
+  n->prev = prev;
+  prev->next = n;
 }
 
 /// Add a node to the front of the list
 /// @param[in] n The node to add to the list.
 /// @param[in] head The head of the list.
-static inline void list_add(struct ll_head* n, struct ll_head* head)
-{
-	list_insert(n, head, head->next);
+static inline void list_add(struct ll_head* n, struct ll_head* head) {
+  list_insert(n, head, head->next);
 }
 
 /// Add a node to the end of the list
 /// @param[in] n The node to add to the list.
 /// @param[in] head The head of the list.
-static inline void list_add_tail(struct ll_head* n, struct ll_head* head)
-{
-	list_insert(n, head->prev, head);
+static inline void list_add_tail(struct ll_head* n, struct ll_head* head) {
+  list_insert(n, head->prev, head);
 }
 
 /// @}
@@ -333,21 +349,21 @@ static inline void list_add_tail(struct ll_head* n, struct ll_head* head)
 /// Joins the `prev` and `next` elements together, effectively removing
 /// the element in the middle.
 ///
-/// @param[in] prev The previous element in the list, which will now be joined to next.
-/// @param[in] next The next element in the list, which will now be joined to prev.
-static inline void list_join_nodes(struct ll_head* prev, struct ll_head* next)
-{
-	next->prev = prev;
-	prev->next = next;
+/// @param[in] prev The previous element in the list, which will now be joined
+/// to next.
+/// @param[in] next The next element in the list, which will now be joined to
+/// prev.
+static inline void list_join_nodes(struct ll_head* prev, struct ll_head* next) {
+  next->prev = prev;
+  prev->next = next;
 }
 
 /// Remove an entry from the list
 /// @param[in] entry The pointer to the entry to remove from the list.
-static inline void list_del(struct ll_head* entry)
-{
-	list_join_nodes(entry->prev, entry->next);
-	entry->next = NULL;
-	entry->prev = NULL;
+static inline void list_del(struct ll_head* entry) {
+  list_join_nodes(entry->prev, entry->next);
+  entry->next = NULL;
+  entry->prev = NULL;
 }
 
 /// @}
@@ -355,4 +371,4 @@ static inline void list_del(struct ll_head* entry)
 /// @}
 // end group
 
-#endif // LL_H__
+#endif  // LL_H__
