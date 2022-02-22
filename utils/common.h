@@ -18,31 +18,30 @@
 #define MIN(x, y) (x < y ? x : y)
 
 #ifdef CAVIUM_PLATFORM
-#include "cvmx.h"
 #include "cvmx-bootmem.h"
+#include "cvmx.h"
 #define zmalloc(total_size, ALIGN, table_name) \
-    cvmx_bootmem_alloc_named(total_size, ALIGN, table_name)
-#define zfree(block_name) \
-    cvmx_bootmem_free_named(block_name)
+  cvmx_bootmem_alloc_named(total_size, ALIGN, table_name)
+#define zfree(block_name) cvmx_bootmem_free_named(block_name)
 #else
-#define zmalloc(total_size, ALIGN, table_name) \
-    malloc(total_size)
-#define zfree(block_ptr) \
-    free(block_ptr)
+#define zmalloc(total_size, ALIGN, table_name) malloc(total_size)
+#define zfree(block_ptr) free(block_ptr)
 #endif
 
-typedef struct
-{
-	uint32_t srcip;
-	uint32_t dstip;
-	uint16_t srcport;
-	uint16_t dstport;
-	uint8_t proto;
-}five_tuple_t;
+typedef struct {
+  uint32_t srcip;
+  uint32_t dstip;
+  uint16_t srcport;
+  uint16_t dstport;
+  uint8_t proto;
+} five_tuple_t;
 
-#define IS_EQUAL(key1, key2) ((key1.srcip == key2.srcip) && (key1.dstip == key2.dstip) && (key1.srcport == key2.srcport) && (key1.dstport == key2.dstport) && (key1.proto == key2.proto))
+#define IS_EQUAL(key1, key2)                                           \
+  ((key1.srcip == key2.srcip) && (key1.dstip == key2.dstip) &&         \
+   (key1.srcport == key2.srcport) && (key1.dstport == key2.dstport) && \
+   (key1.proto == key2.proto))
 
-#define ALIGN 0x400 // 128 bytes       
+#define ALIGN 0x400  // 128 bytes
 #define CAST_PTR(type, ptr) ((type)(ptr))
 
 #define MAX_TABLE_NAME_LEN 32
@@ -72,16 +71,16 @@ typedef struct
 // }
 
 #define CPU_GHZ (3.2)
-#define BUF_SIZ		1536
+#define BUF_SIZ 1536
 #define MAX_BATCH_SIZE 32
 
-#define TEST_NPKTS (2*50*1024)
+#define TEST_NPKTS (2 * 50 * 1024)
 #define MAX_UNACK_WINDOW 512
 
-#define DEFAULT_IF	"eth0"
-#define ETH_P_IP	0x0800		/* Internet Protocol packet	*/
-#define ETH_P_ALL	0x0003		/* Every packet (be careful!!!) */
-#define ETH_ALEN	6		/* Octets in one ethernet addr	 */
+#define DEFAULT_IF "eth0"
+#define ETH_P_IP 0x0800  /* Internet Protocol packet	*/
+#define ETH_P_ALL 0x0003 /* Every packet (be careful!!!) */
+#define ETH_ALEN 6       /* Octets in one ethernet addr	 */
 
 #define CUSTOM_PROTO_BASE 0x1234
 
@@ -90,26 +89,27 @@ typedef struct
 uint64_t MAC_NFTOP = 0x0200006d1200;
 uint64_t MAC_PKTGEN = 0x0300006d1200;
 
-// the following is to facilitate parsing embedded file.h 
+// the following is to facilitate parsing embedded file.h
 typedef struct {
-    unsigned char * file_data;
-    unsigned long long file_size;
-    unsigned long long cur_read_pos;
+  unsigned char* file_data;
+  unsigned long long file_size;
+  unsigned long long cur_read_pos;
 } MY_FILE;
 
-void init_my_fread(unsigned char * file_data, unsigned long long file_size, MY_FILE* file) {
-    file->file_data = file_data;
-    file->file_size = file_size;
-    file->cur_read_pos = 0;
+void init_my_fread(unsigned char* file_data, unsigned long long file_size,
+                   MY_FILE* file) {
+  file->file_data = file_data;
+  file->file_size = file_size;
+  file->cur_read_pos = 0;
 }
-size_t my_fread(void * ptr, size_t size, size_t n, MY_FILE* file) {
-    size_t read_size = size * n;
-    if (read_size + file->cur_read_pos > file->file_size) {
-        return 0;
-    }
-    memcpy(ptr, file->file_data + file->cur_read_pos, read_size);
-    file->cur_read_pos += read_size;
-    return read_size;
+size_t my_fread(void* ptr, size_t size, size_t n, MY_FILE* file) {
+  size_t read_size = size * n;
+  if (read_size + file->cur_read_pos > file->file_size) {
+    return 0;
+  }
+  memcpy(ptr, file->file_data + file->cur_read_pos, read_size);
+  file->cur_read_pos += read_size;
+  return read_size;
 }
 
 #endif /* __COMMON_H__ */
