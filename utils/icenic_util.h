@@ -285,7 +285,8 @@ static void nic_boot_pkt(int nf_idx) {
 
   uint64_t *pkt_bytes = (uint64_t *)buf;
   pkt_bytes[0] = MAC_NFTOP << 16;
-  pkt_bytes[1] = MAC_NFTOP | ((uint64_t)htons(ETH_P_IP) << 48);
+  pkt_bytes[1] =
+      MAC_NFTOP | ((uint64_t)htons(CUSTOM_PROTO_BASE + nf_idx) << 48);
 
   ipv4->version_ihl = 0x45;
   ipv4->type_of_service = 0;

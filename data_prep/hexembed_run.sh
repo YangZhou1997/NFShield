@@ -1,5 +1,6 @@
 # !/bin/bash
 
+make clean && make
 ./hexembed ../data/ac.raw > ../data_embed/ac.h
 ./hexembed ../data/acl-fw-hashmap-dleft.raw > ../data_embed/acl_fw_hashmap_dleft.h
 ./hexembed ../data/ictf2010_100kflow_2mseq.dat > ../data_embed/ictf2010_100kflow_2mseq.h 

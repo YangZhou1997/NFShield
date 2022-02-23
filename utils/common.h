@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 // #include <pthread.h>
 // #include <sched.h>
 
@@ -16,6 +17,7 @@
 
 #define MAX(x, y) (x > y ? x : y)
 #define MIN(x, y) (x < y ? x : y)
+#define STRING(s) #s
 
 #ifdef CAVIUM_PLATFORM
 #include "cvmx-bootmem.h"
@@ -91,12 +93,12 @@ uint64_t MAC_PKTGEN = 0x0300006d1200;
 
 // the following is to facilitate parsing embedded file.h
 typedef struct {
-  unsigned char* file_data;
+  const unsigned char* file_data;
   unsigned long long file_size;
   unsigned long long cur_read_pos;
 } MY_FILE;
 
-void init_my_fread(unsigned char* file_data, unsigned long long file_size,
+void init_my_fread(const unsigned char* file_data, unsigned long long file_size,
                    MY_FILE* file) {
   file->file_data = file_data;
   file->file_size = file_size;

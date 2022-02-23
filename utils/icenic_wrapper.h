@@ -14,7 +14,6 @@ arch_spinlock_t icenet_lock;
 int recvfrom_batch(int core_id, int buff_size, pkt_t* pkt_buf) {
   arch_spin_lock(&icenet_lock);
   int cnt = 0;
-  int numbytes = 0;
   while (cnt < MAX_BATCH_SIZE) {
     if (nic_recv_req_avail() == 0) {
       arch_spin_unlock(&icenet_lock);

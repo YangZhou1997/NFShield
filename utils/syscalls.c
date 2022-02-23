@@ -691,7 +691,6 @@ int isxdigit(int c) {
 }
 int isspace(int c) { return ((c >= 0x09 && c <= 0x0D) || (c == 0x20)); }
 
-#include "limits.h"
 long strtol(const char* nptr, char** ptr, int base) {
   register const char* s = nptr;
   register unsigned long acc;
