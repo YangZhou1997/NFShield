@@ -9,9 +9,9 @@
 #include "./nfs/nat-tcp-v4.h"
 #include "./utils/common.h"
 #include "./utils/encoding.h"
+#include "./utils/icenic_wrapper.h"
 #include "./utils/pkt-header.h"
 #include "./utils/pkt-ops.h"
-#include "./utils/icenic_wrapper.h"
 #include "config.h"
 
 int l2_fwd_init() { return 0; }
@@ -26,6 +26,7 @@ static int (*nf_init[8])();
 static void (*nf_process[8])(uint8_t *);
 static void (*nf_destroy[8])();
 
+#define NCORES 4
 static int num_nfs = 0;
 __thread int sockfd = 0;
 pkt_t pkt_buf_all[NCORES][MAX_BATCH_SIZE];
@@ -84,7 +85,8 @@ finished:
   return NULL;
 }
 
-#define MALLOC_SIZE ((uint64_t)(1.5 * 1024 * 1024 * 1024))
+// 1.5GB memory for malloc
+#define MALLOC_SIZE (1536 * 1024 * 1024)
 static uint8_t malloc_bytes[MALLOC_SIZE];
 
 arch_spinlock_t init_lock;
@@ -102,16 +104,16 @@ void init_nfs_once() {
 
   char *nf_names_all[8] = {"l2_fwd", "acl_fw",     "dpi",        "lpm",
                            "maglev", "monitoring", "nat_tcp_v4", "mem_test"};
-  int (*nf_init_all[8])() = {l2_fwd, acl_fw,     dpi,        lpm,
-                             maglev, monitoring, nat_tcp_v4, mem_test};
+  int (*nf_init_all[8])() = {l2_fwd_init,     acl_fw_init,  dpi_init,
+                             lpm_init,        maglev_init,  monitoring_init,
+                             nat_tcp_v4_init, mem_test_init};
   void (*nf_process_all[8])(uint8_t *) = {
-      l2_fwd_init, acl_fw_init,     dpi_init,        lpm_init,
-      maglev_init, monitoring_init, nat_tcp_v4_init, mem_test_init};
+      l2_fwd, acl_fw, dpi, lpm, maglev, monitoring, nat_tcp_v4, mem_test};
   void (*nf_destroy_all[8])() = {
       l2_fwd_destroy, acl_fw_destroy,     dpi_destroy,        lpm_destroy,
       maglev_destroy, monitoring_destroy, nat_tcp_v4_destroy, mem_test_destroy};
 
-  char *token = strtok(NF_STRINGS, ':');
+  char *token = strtok(STRING(NF_STRINGS), ":");
   while (token != NULL) {
     printf("NF_STRINGS token%d: %s\n", num_nfs, token);
     for (int i = 0; i < 8; i++) {

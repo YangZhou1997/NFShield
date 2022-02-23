@@ -635,10 +635,10 @@ void recover_hashmap() {
   MY_FILE file;
   init_my_fread(file_acl_fw_hashmap_dleft_raw, fsize_acl_fw_hashmap_dleft_raw,
                 &file);
-  uint32_t srcip, dstip;
-  uint16_t srcport, dstport;
-  uint8_t proto;
-  uint8_t val;
+  uint32_t srcip = 0, dstip = 0;
+  uint16_t srcport = 0, dstport = 0;
+  uint8_t proto = 0;
+  uint8_t val = 0;
   uint32_t cnt = 0;
   while (my_fread(&srcip, sizeof(uint32_t), 1, &file) != 0) {
     my_fread(&dstip, sizeof(uint32_t), 1, &file);

@@ -1,4 +1,4 @@
-# NFs and pktgen running on FireSim-simulated riscv64 buildroot SMP linux
+# NFs running on FireSim-simulated riscv quad-core rocket processor
 
 ## Install git LFS to get the data files (if you has not installed)
 ```
@@ -10,95 +10,36 @@ git lfs pull
 ```
 For the other OS, please refer to [this page](https://github.com/git-lfs/git-lfs/wiki/Installation). 
 
-
-## Initing a new ubuntu VM
+## Build embedded .h data files
+We embed some necessary data into .h files, so bare-metal binaries can directly include and load them without file IO.  
 ```
-wget -c https://releases.hashicorp.com/vagrant/2.0.3/vagrant_2.0.3_x86_64.deb
-sudo dpkg -i vagrant_2.0.3_x86_64.deb
-
-sudo apt-get remove --purge virtualbox-6.0
-wget https://download.virtualbox.org/virtualbox/5.2.44/virtualbox-5.2_5.2.44-139111~Ubuntu~bionic_amd64.deb
-sudo dpkg -i virtualbox-5.2_5.2.44-139111~Ubuntu~bionic_amd64.deb
-
-cp Vagrantfile ~/
-vagrant plugin install vagrant-disksize
-vagrant up --provider=virtualbox
+cd data_prep && ./hexembed_run.sh && cd -
 ```
+This may take ~5mins
 
-## Prepare riscv64 toolchain and linux image: [blog](https://www.embecosm.com/2018/09/19/adding-risc-v-64-bit-support-to-buildroot/.)
-1.  Configure buildroot
-    ```
-    cd ~
-    git clone https://github.com/riscv/riscv-buildroot
-    cd riscv-buildroot
-    git checkout riscv-start
-    make qemu_riscv64_virt_defconfig
-    ```
-
-2. edit `.config` to increase disk size
-    ```
-    BR2_TARGET_ROOTFS_EXT2_SIZE="1G"
-    ```
-
-3. make 
-    ```
-    make sdk -j9 && make -j9
-    ```
-
-## Prepare riscv64 NF and pktgen binaries. 
+## Buildinng riscv64 toolchain
 ```
-source riscv_build_env.sh
-make
+git clone git@github.com:YangZhou1997/firesim.git
+cd firesim && ./build-setup.sh fast
+export PATH=$HOME/firesim/target-design/chipyard/riscv-tools-install/bin:$PATH
+```
+Enter `y` if prompting any confirmation questions.
+
+## Prepare riscv64 NF binary
+```
+make CONFIG="-DNF_STRINGS=l2_fwd:l2_fwd:l2_fwd:l2_fwd"
+```
+This will build a `nftop.riscv` binary running l2_fwd on four cores, and copy it with necessary `.ini`, and `.json` to `$HOME/firesim/deploy/workloads`. You can then go there to start firesim simulation.
+
+## Run firesim simulation
+```
+cd $HOME/firesim/ && source sourceme-f1-manager.sh && firesim managerinit
+cd $HOME/firesim/deploy/workloads
+firesim launchrunfarm -c nftop.ini
+firesim infrasetup -c nftop.ini
+firesim runworkload -c nftop.ini
+firesim terminaterunfarm -c nftop.ini
 ```
 
-## Start nftop in qemu with 4 NFs (cores)
-Make sure that you have 4 cores in your NF server. 
-```
-bash run_qemu.sh 4
->> root
-cd NF-GEM5 && ./nftop -n lpm -n dpi -n monitoring -n acl_fw -d DE:AD:BE:EF:B7:90
-```
-It might be possible that you nftop triggers segmentation fault when exiting; but do not worry, it should be glibc bug when calling pthread_join() (https://sourceware.org/bugzilla/show_bug.cgi?id=20116)
-
-You can run mem_test as following: 
-```
-cd NF-GEM5 && ./nftop -n lpm -n dpi -n monitoring -n mem_test -t 4000000 -p 10240 -d DE:AD:BE:EF:B7:90
-```
-where in mem_test, for each packet, it will randomly access 10240 (*-p*) continuous bytes in a 4000000-bytes (*-t*) array. 
-Here "random access" means reading the 4-bytes integer, increment it by one, and write it back. You can check more details in [mem_test()](./nfs/mem-test.h). 
-
-## Start pktgen in another qemu with 4 cores
-Make sure that you have 4 cores in your pktgen server. When using less number of cores, the pktgen performance will decrease, and sometimes deadlock. 
-**In order to get correct performance number, you should wait utill all NFs init done.**
-```
-bash run_qemu2.sh 4
->> root
-cd NF-GEM5 && ./pktgen -n 4 -d DE:AD:BE:EF:7F:45
-```
-
-
-## Testing raw socket sending rate (64B)
-```
-./testRawSendingRate_64B eth0 DE:AD:BE:EF:7F:45
-```
-
-## Testing raw socket sending rate (real traffic trace)
-```
-./testRawSendingRate_trace eth0 DE:AD:BE:EF:7F:45
-```
-
-## Testing raw NF processing rate (real traffic trace)
-```
-./testRawNFRate_trace eth0 DE:AD:BE:EF:7F:45
-```
-
-## Notes
-There is still rare cases that pktgen deadlock happens (may be caused by packet reordering/drops in the network link) when using 4 cores -- TO BE FIXED. 
-When it happens, normally you just need to ctrl+c the pktgen, and rerun, then the deallock should disappear. 
-Okay, it turns out to be the memory ordering issue, adding barrier() fixes. -- no, it cannot fix
-Okay, it seems using large MAX_UNACK_WINDOW can fix it. 
-Finally, forcely resolve it. 
-
-TODO: 
-cpu stats to measure the cpu utilization. -- test in VM
-    not sure if kernel overhead is high?? 
+## Get simulation results
+TODO

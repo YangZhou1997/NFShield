@@ -1,5 +1,5 @@
 CC=riscv64-unknown-elf-gcc
-CFLAGS=-mcmodel=medany -Wall -O2 -fno-common -fno-builtin-printf
+CFLAGS=-mcmodel=medany -Wall -O2 -fno-common -fno-builtin-printf -Wno-unused-function $(CONFIG)
 LDFLAGS=-static -nostdlib -nostartfiles -lgcc
 
 CC_LINUX=riscv64-unknown-linux-gnu-gcc

@@ -31,7 +31,6 @@ void load_pkt(char *filename) {
   while (1) {
     fread(&pkts[pkt_cnt].len, sizeof(uint16_t), 1, file);
     pkt_size += pkts[pkt_cnt].len;
-    pkts[pkt_cnt].content = (uint8_t *)malloc(pkts[pkt_cnt].len);
     fread(pkts[pkt_cnt].content, 1, pkts[pkt_cnt].len, file);
     pkt_cnt++;
     if (pkt_cnt == PKT_NUM) {
