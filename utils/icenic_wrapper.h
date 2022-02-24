@@ -11,6 +11,54 @@
 #include "riscv_util.h"
 
 arch_spinlock_t icenet_lock;
+
+/**
+ * Send one LNIC pkt to indicate that the system has booted
+ * and is ready to start processing pkts.
+ * The switch wait for all boot pkts from all cores to arrive
+ * before starting the tests.
+ */
+#define BOOT_PKT_LEN 64
+static void nic_boot_pkt(int nf_idx) {
+  unsigned long len = BOOT_PKT_LEN;
+  uint8_t buf[BOOT_PKT_LEN];
+
+  struct ether_hdr *eth;
+  struct ipv4_hdr *ipv4;
+
+  eth = (void *)(buf + NET_IP_ALIGN);
+  ipv4 = (void *)eth + ETH_HEADER_SIZE;
+
+  printf("%d nic_boot_pkt before mac\n", nf_idx);
+
+  uint64_t *pkt_bytes = (uint64_t *)buf;
+  pkt_bytes[0] = MAC_NFTOP << 16;
+  printf("%d nic_boot_pkt before htons\n", nf_idx);
+  // pkt_bytes[1] =
+  //     MAC_NFTOP | ((uint64_t)htons(CUSTOM_PROTO_BASE + nf_idx) << 48);
+  pkt_bytes[1] = MAC_NFTOP | (0x1234ull << 48);
+  printf("%d nic_boot_pkt after htons\n", nf_idx);
+
+  printf("%d nic_boot_pkt before ipv4\n", nf_idx);
+  ipv4->version_ihl = 0x45;
+  ipv4->type_of_service = 0;
+  ipv4->total_length = htons(BOOT_PKT_LEN - ETH_HEADER_SIZE);
+  ipv4->packet_id = htons(1);
+  ipv4->fragment_offset = htons(0);
+  ipv4->time_to_live = 64;
+  ipv4->next_proto_id = LNIC_PROTO;
+  ipv4->hdr_checksum = 0;  // NOTE: not implemented
+  ipv4->src_addr = htoni(0);
+  ipv4->dst_addr = htoni(0);
+
+  printf("%d nic_boot_pkt before spinlock\n", nf_idx);
+  arch_spin_lock(&icenet_lock);
+  printf("%d nic_boot_pkt before nic_send\n", nf_idx);
+  nic_send(buf, len);
+  printf("%d nic_boot_pkt after nic_send\n", nf_idx);
+  arch_spin_unlock(&icenet_lock);
+}
+
 int recvfrom_batch(int core_id, int buff_size, pkt_t* pkt_buf) {
   arch_spin_lock(&icenet_lock);
   int cnt = 0;

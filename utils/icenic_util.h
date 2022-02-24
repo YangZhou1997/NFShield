@@ -100,21 +100,37 @@ static inline uint64_t nic_macaddr(void) {
 // R type: .insn r opcode, func3, func7, rd, rs1, rs2
 
 static inline uint16_t ntohs(uint16_t nint) {
-  uint16_t result;
-  asm volatile(".insn r 0x33, 0, 0x2A, %0, %1, x0" : "=r"(result) : "r"(nint));
-  return result;
+  // uint16_t result;
+  // asm volatile(".insn r 0x33, 0, 0x2A, %0, %1, x0" : "=r"(result) :
+  // "r"(nint)); return result;
+  return ((nint & 0xff) << 8) | ((nint >> 8) & 0xff);
 }
 
 static inline uint32_t ntohi(uint32_t nint) {
-  uint32_t result;
-  asm volatile(".insn r 0x33, 1, 0x2A, %0, %1, x0" : "=r"(result) : "r"(nint));
-  return result;
+  // uint32_t result;
+  // asm volatile(".insn r 0x33, 1, 0x2A, %0, %1, x0" : "=r"(result) :
+  // "r"(nint)); return result;
+  return ((nint & 0xff) << 24) | ((nint & 0xff00) << 8) |
+         ((nint & 0xff0000) >> 8) | ((nint >> 24) & 0xff);
 }
 
 static inline uint64_t ntohl(uint64_t nint) {
-  uint64_t result;
-  asm volatile(".insn r 0x33, 2, 0x2A, %0, %1, x0" : "=r"(result) : "r"(nint));
-  return result;
+  // uint64_t result;
+  // asm volatile(".insn r 0x33, 2, 0x2A, %0, %1, x0" : "=r"(result) :
+  // "r"(nint)); return result;
+  uint64_t rval;
+  uint8_t *data = (uint8_t *)&rval;
+
+  data[0] = nint >> 56;
+  data[1] = nint >> 48;
+  data[2] = nint >> 40;
+  data[3] = nint >> 32;
+  data[4] = nint >> 24;
+  data[5] = nint >> 16;
+  data[6] = nint >> 8;
+  data[7] = nint >> 0;
+
+  return rval;
 }
 
 static inline uint16_t htons(uint16_t nint) { return ntohs(nint); }
@@ -264,42 +280,6 @@ static int swap_addresses(void *buf) {
   lnic->src = tmp_lnic_addr;
 
   return 0;
-}
-
-/**
- * Send one LNIC pkt to indicate that the system has booted
- * and is ready to start processing pkts.
- * The switch wait for all boot pkts from all cores to arrive
- * before starting the tests.
- */
-#define BOOT_PKT_LEN 64
-static void nic_boot_pkt(int nf_idx) {
-  unsigned long len = BOOT_PKT_LEN;
-  uint8_t buf[BOOT_PKT_LEN];
-
-  struct ether_hdr *eth;
-  struct ipv4_hdr *ipv4;
-
-  eth = (void *)(buf + NET_IP_ALIGN);
-  ipv4 = (void *)eth + ETH_HEADER_SIZE;
-
-  uint64_t *pkt_bytes = (uint64_t *)buf;
-  pkt_bytes[0] = MAC_NFTOP << 16;
-  pkt_bytes[1] =
-      MAC_NFTOP | ((uint64_t)htons(CUSTOM_PROTO_BASE + nf_idx) << 48);
-
-  ipv4->version_ihl = 0x45;
-  ipv4->type_of_service = 0;
-  ipv4->total_length = htons(BOOT_PKT_LEN - ETH_HEADER_SIZE);
-  ipv4->packet_id = htons(1);
-  ipv4->fragment_offset = htons(0);
-  ipv4->time_to_live = 64;
-  ipv4->next_proto_id = LNIC_PROTO;
-  ipv4->hdr_checksum = 0;  // NOTE: not implemented
-  ipv4->src_addr = htoni(0);
-  ipv4->dst_addr = htoni(0);
-
-  nic_send(buf, len);
 }
 
 #endif  // RISCV_ICENIC_H
