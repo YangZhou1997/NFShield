@@ -35,7 +35,9 @@ void *loop_func(int nf_idx) {
   pkt_t *pkt_buf = pkt_buf_all[nf_idx];
   sockfd = nf_idx;
 
+  printf("%d loop_func before nic_boot_pkt\n", nf_idx);
   nic_boot_pkt(nf_idx);
+  printf("%d loop_func after nic_boot_pkt\n", nf_idx);
 
   if (nf_init[nf_idx]() < 0) {
     printf("nf_init error, exit\n");
