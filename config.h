@@ -2,7 +2,7 @@
 #define __CONFIG_H__
 
 #ifndef NF_STRINGS
-#define NF_STRINGS l2_fwd:l2_fwd:l2_fwd:l2_fwd
+#define NF_STRINGS "l2_fwd:l2_fwd:l2_fwd:l2_fwd"
 #endif
 
 #ifndef MEM_TEST_TOTAL_BYTES

@@ -113,11 +113,16 @@ void init_nfs_once() {
       l2_fwd_destroy, acl_fw_destroy,     dpi_destroy,        lpm_destroy,
       maglev_destroy, monitoring_destroy, nat_tcp_v4_destroy, mem_test_destroy};
 
-  char *token = strtok(STRING(NF_STRINGS), ":");
-  while (token != NULL) {
-    printf("NF_STRINGS token%d: %s\n", num_nfs, token);
+  printf("NF_STRINGS: %s\n", NF_STRINGS);
+  char buf[512];
+  strcpy(buf, NF_STRINGS);
+
+  char *token;
+  for (token = strtok(buf, ":"); token; token = strtok(NULL, ":")) {
+    printf("token: %s\n", token);
     for (int i = 0; i < 8; i++) {
       if (!strcmp(token, nf_names_all[i])) {
+        printf("valid NF #%d: %s\n", num_nfs, token);
         nf_process[num_nfs] = nf_process_all[i];
         nf_init[num_nfs] = nf_init_all[i];
         nf_destroy[num_nfs] = nf_destroy_all[i];
@@ -129,7 +134,7 @@ void init_nfs_once() {
   }
 
   if (num_nfs != 4) {
-    printf("Only support num_nfs == 4!");
+    printf("Only support num_nfs == 4!\n");
     exit(0);
   }
 

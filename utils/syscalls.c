@@ -677,11 +677,12 @@ int fclose(FILE* stream) {
 
 // the following is borrowed from https://github.com/aethaniel/minilib-c
 
+int isdigit(int c) { return (unsigned)c - '0' < 10; }
 int isprint(int c) { return (c >= 0x20 && c <= 0x7E); }
 int isascii(int c) { return (c >= 0 && c < 128); }
+int islower(int c) { return ((c >= 'a') && (c <= 'z')); }
 int toupper(int c) { return islower(c) ? c - 'a' + 'A' : c; }
 int isupper(int c) { return ((c >= 'A') && (c <= 'Z')); }
-int islower(int c) { return ((c >= 'a') && (c <= 'z')); }
 int isalpha(int c) {
   return ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'));
 }
@@ -849,35 +850,8 @@ end_parse:
   return ret;
 }
 
-char* strstr(const char* searchee, const char* lookfor) {
-  /* Less code size, but quadratic performance in the worst case.  */
-  if (*searchee == 0) {
-    if (*lookfor) return (char*)NULL;
-    return (char*)searchee;
-  }
-
-  while (*searchee) {
-    size_t i;
-    i = 0;
-
-    while (1) {
-      if (lookfor[i] == 0) {
-        return (char*)searchee;
-      }
-
-      if (lookfor[i] != searchee[i]) {
-        break;
-      }
-      i++;
-    }
-    searchee++;
-  }
-
-  return (char*)NULL;
-}
-
 // borrowed from
-// https://github.com/embeddedartistry/libc/blob/master/src/string/strtok.c
+// https://github.com/embeddedartistry/libc/blob/master/src/string/
 
 char* __strtok_r(char* /*s*/ /*s*/, const char* /*delim*/ /*delim*/,
                  char** /*last*/ /*last*/);
