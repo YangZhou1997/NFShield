@@ -36,17 +36,16 @@ barrier_t nic_boot_pkt_barrier;
 void *loop_func(int nf_idx) {
   pkt_t *pkt_buf = pkt_buf_all[nf_idx];
   sockfd = nf_idx;
+  if (nf_init[nf_idx]() < 0) {
+    printf("nf_init error, exit\n");
+    exit(0);
+  }
 
   printf("%d loop_func before nic_boot_pkt\n", nf_idx);
   nic_boot_pkt(nf_idx);
   printf("%d loop_func after nic_boot_pkt\n", nf_idx);
   barrier_wait(&nic_boot_pkt_barrier);
   printf("%d loop_func after barrier_wait\n", nf_idx);
-
-  if (nf_init[nf_idx]() < 0) {
-    printf("nf_init error, exit\n");
-    exit(0);
-  }
 
   int numpkts = 0;
   uint64_t start = rdcycle();
