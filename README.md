@@ -9,6 +9,7 @@ git lfs install
 git lfs pull
 ```
 For the other OS, please refer to [this page](https://github.com/git-lfs/git-lfs/wiki/Installation). 
+Also, make sure your git has version 2.3+ (`git --version`)
 
 ## Build embedded .h data files
 We embed some necessary data into .h files, so bare-metal binaries can directly include and load them without file IO.  
@@ -34,11 +35,11 @@ This will build a `nftop.riscv` binary running l2_fwd on four cores, and copy it
 ## Run firesim simulation
 ```
 cd $HOME/firesim/ && source sourceme-f1-manager.sh && firesim managerinit
-cd $HOME/firesim/deploy/workloads
-firesim launchrunfarm -c nftop.ini
-firesim infrasetup -c nftop.ini
-firesim runworkload -c nftop.ini
-firesim terminaterunfarm -c nftop.ini
+cd $HOME/firesim/deploy
+firesim launchrunfarm -c workloads/nftop.ini
+firesim infrasetup -c workloads/nftop.ini
+firesim runworkload -c workloads/nftop.ini
+firesim terminaterunfarm -c workloads/nftop.ini
 ```
 
 ## Get simulation results

@@ -16,4 +16,4 @@ hexembed: hexembed.c
 	gcc -o hexembed hexembed.c
 
 clean: 
-	rm extract_flow extract_packets synth_zipf_packets hexembed
+	rm -f extract_flow extract_packets synth_zipf_packets hexembed
