@@ -104,6 +104,7 @@ void init_my_fread(const unsigned char* file_data, unsigned long long file_size,
   file->file_size = file_size;
   file->cur_read_pos = 0;
 }
+
 size_t my_fread(void* ptr, size_t size, size_t n, MY_FILE* file) {
   size_t read_size = size * n;
   if (read_size + file->cur_read_pos > file->file_size) {
