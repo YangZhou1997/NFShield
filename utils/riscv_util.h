@@ -106,4 +106,31 @@ static inline void arch_spin_lock(arch_spinlock_t* lock) {
   }
 }
 
+typedef struct {
+  volatile unsigned int countdown;
+  arch_spinlock_t lock;
+} barrier_t;
+
+// called once, init a global barrier.
+static inline void barrier_init(int countdown_value, barrier_t* barrier) {
+  barrier->countdown = countdown_value;
+}
+
+static inline void barrier_wait(barrier_t* barrier) {
+  arch_spin_lock(&barrier->lock);
+  barrier->countdown--;
+  arch_spin_unlock(&barrier->lock);
+  while (1) {
+    arch_spin_lock(&barrier->lock);
+    if (!barrier->countdown) {
+      return;
+    } else {
+      arch_spin_unlock(&barrier->lock);
+      for (int i = 0; i < 1000; i++) {
+        asm volatile("nop");
+      }
+    }
+  }
+}
+
 #endif  //__UTIL_H

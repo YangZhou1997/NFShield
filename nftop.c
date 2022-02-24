@@ -31,6 +31,8 @@ static int num_nfs = 0;
 __thread int sockfd = 0;
 pkt_t pkt_buf_all[NCORES][MAX_BATCH_SIZE];
 
+barrier_t nic_boot_pkt_barrier;
+
 void *loop_func(int nf_idx) {
   pkt_t *pkt_buf = pkt_buf_all[nf_idx];
   sockfd = nf_idx;
@@ -38,6 +40,8 @@ void *loop_func(int nf_idx) {
   printf("%d loop_func before nic_boot_pkt\n", nf_idx);
   nic_boot_pkt(nf_idx);
   printf("%d loop_func after nic_boot_pkt\n", nf_idx);
+  barrier_wait(&nic_boot_pkt_barrier);
+  printf("%d loop_func after barrier_wait\n", nf_idx);
 
   if (nf_init[nf_idx]() < 0) {
     printf("nf_init error, exit\n");
@@ -101,7 +105,8 @@ void init_nfs_once() {
     return;
   }
   if_inited = 1;
-
+  
+  barrier_init(NCORES, &nic_boot_pkt_barrier);
   malloc_addblock(malloc_bytes, MALLOC_SIZE);
 
   char *nf_names_all[8] = {"l2_fwd", "acl_fw",     "dpi",        "lpm",
