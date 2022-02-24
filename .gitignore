@@ -3,3 +3,4 @@ nftop
 *.riscv
 *.o
 .vscode/
+syscalls_test

@@ -17,7 +17,6 @@
 
 #define MAX(x, y) (x > y ? x : y)
 #define MIN(x, y) (x < y ? x : y)
-#define STRING(s) #s
 
 #ifdef CAVIUM_PLATFORM
 #include "cvmx-bootmem.h"

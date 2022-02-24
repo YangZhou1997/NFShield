@@ -27,5 +27,9 @@ syscalls.o: ./utils/syscalls.c
 %.o: ./utils/%.S
 	$(CC) $(CFLAGS) -c $< -o $@
 
+# make CONFIG='-DNF_STRINGS=\"l2_fwd:nat_tcp_v4:dpi:acl_fw\"' syscalls_test
+syscalls_test: syscalls_test.c
+	gcc $(CONFIG) -o syscalls_test syscalls_test.c
+
 clean: 
-	rm -f *.riscv *.o
+	rm -f *.riscv *.o syscalls_test

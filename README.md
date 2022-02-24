@@ -28,7 +28,7 @@ Enter `y` if prompting any confirmation questions.
 
 ## Prepare riscv64 NF binary
 ```
-make CONFIG="-DNF_STRINGS=l2_fwd:l2_fwd:l2_fwd:l2_fwd"
+make CONFIG='-DNF_STRINGS=\"l2_fwd:l2_fwd:l2_fwd:l2_fwd\"'
 ```
 This will build a `nftop.riscv` binary running l2_fwd on four cores, and copy it with necessary `.ini`, and `.json` to `$HOME/firesim/deploy/workloads`. You can then go there to start firesim simulation.
 
