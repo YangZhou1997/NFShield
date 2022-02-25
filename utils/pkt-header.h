@@ -8,6 +8,7 @@
 
 #define ETH_MAX_WORDS 190
 #define ETH_HEADER_SIZE 14
+#define IP_HEADER_SIZE 20
 #define MAC_ADDR_SIZE 6
 #define IP_ADDR_SIZE 4
 
@@ -47,9 +48,8 @@ struct tcp_hdr {
 } __attribute__((__packed__));
 
 typedef struct _pkt {
-  uint32_t len;
-  // uint16_t len;
   uint8_t content[ETH_MAX_WORDS * 8];
+  uint16_t len;
 } pkt_t;
 
 #endif  // __PKT_HEADER__

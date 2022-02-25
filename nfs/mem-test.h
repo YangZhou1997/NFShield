@@ -18,10 +18,15 @@ void mem_test(uint8_t *pkt_ptr) {
 
   uint32_t start =
       random() % (MEM_TEST_TOTAL_BYTES - MEM_TEST_ACCESS_BYTES_PER_PKT);
+  // aligned array access always to 8B
+  // see why:
+  // https://www.kernel.org/doc/Documentation/unaligned-memory-access.txt
+  start = start & (~0x7u);
+
   for (uint32_t i = start;
-       i < start + MEM_TEST_ACCESS_BYTES_PER_PKT - sizeof(uint32_t);
-       i += sizeof(uint32_t)) {
-    *(uint32_t *)(array + i) += 1;
+       i < start + MEM_TEST_ACCESS_BYTES_PER_PKT - sizeof(uint64_t);
+       i += sizeof(uint64_t)) {
+    *(uint64_t *)(array + i) += 1;
   }
 
   pkt_cnt_mem_test++;

@@ -62,19 +62,9 @@ void *loop_func(int nf_idx) {
     }
     printf("[loop_func %d] receiving numpkts %d\n", nf_idx, numpkts);
     for (int i = 0; i < numpkts; i++) {
-      printf("a1: %d\n", (int)pkt_buf_tmp.content[0]);
-      printf("a2: %d\n", (int)pkt_buf_tmp.content[1]);
-      printf("a3: %d\n", (int)pkt_buf_tmp.content[2]);
-      printf("a4: %d\n", (int)pkt_buf_tmp.content[3]);
-      printf("a5: %d\n", (int)pkt_buf_tmp.content[4]);
-      printf("a6: %d\n", (int)pkt_buf_tmp.content[5]);
-      printf("a7: %d\n", (int)pkt_buf_tmp.content[6]);
-      printf("a8: %d\n", (int)pkt_buf_tmp.content[7]);
       nf_process[nf_idx](&pkt_buf_tmp.content[0] + NET_IP_ALIGN);
-      printf("b\n");
 
       pkt_size_sum += pkt_buf_tmp.len;
-      printf("c\n");
       pkt_num++;
 
       if (pkt_num % PRINT_INTERVAL == 0) {
