@@ -1,5 +1,3 @@
-#include <stdatomic.h>
-
 #include "./nfs/acl-fw.h"
 #include "./nfs/dpi.h"
 #include "./nfs/lpm.h"
@@ -16,7 +14,9 @@
 
 int l2_fwd_init() { return 0; }
 void l2_fwd(uint8_t *pkt_ptr) {
+  printf("l2_fwd a\n");
   swap_mac_addr(pkt_ptr);
+  printf("l2_fwd b\n");
   return;
 }
 void l2_fwd_destroy() { return; }
@@ -41,36 +41,50 @@ void *loop_func(int nf_idx) {
     exit(0);
   }
 
-  printf("%d loop_func before nic_boot_pkt\n", nf_idx);
   nic_boot_pkt(nf_idx);
-  printf("%d loop_func after nic_boot_pkt\n", nf_idx);
   barrier_wait(&nic_boot_pkt_barrier);
   printf("%d loop_func after barrier_wait\n", nf_idx);
+
+  // debugging purpose
+  if (nf_idx != 0) {
+    return NULL;
+  }
 
   int numpkts = 0;
   uint64_t start = rdcycle();
   uint64_t pkt_size_sum = 0;
   uint32_t pkt_num = 0;
   while (1) {
-    numpkts = recvfrom_batch(sockfd, BUF_SIZ, pkt_buf);
+    pkt_t pkt_buf_tmp;
+    numpkts = recvfrom_single(sockfd, BUF_SIZ, &pkt_buf_tmp);
     if (numpkts <= 0) {
       continue;
     }
-    // printf("[loop_func %d] receiving numpkts %d\n", nf_idx, numpkts);
+    printf("[loop_func %d] receiving numpkts %d\n", nf_idx, numpkts);
     for (int i = 0; i < numpkts; i++) {
-      nf_process[nf_idx](pkt_buf[i].content + NET_IP_ALIGN);
+      printf("a1: %d\n", (int)pkt_buf_tmp.content[0]);
+      printf("a2: %d\n", (int)pkt_buf_tmp.content[1]);
+      printf("a3: %d\n", (int)pkt_buf_tmp.content[2]);
+      printf("a4: %d\n", (int)pkt_buf_tmp.content[3]);
+      printf("a5: %d\n", (int)pkt_buf_tmp.content[4]);
+      printf("a6: %d\n", (int)pkt_buf_tmp.content[5]);
+      printf("a7: %d\n", (int)pkt_buf_tmp.content[6]);
+      printf("a8: %d\n", (int)pkt_buf_tmp.content[7]);
+      nf_process[nf_idx](&pkt_buf_tmp.content[0] + NET_IP_ALIGN);
+      printf("b\n");
 
-      pkt_size_sum += pkt_buf[i].len;
+      pkt_size_sum += pkt_buf_tmp.len;
+      printf("c\n");
       pkt_num++;
 
       if (pkt_num % PRINT_INTERVAL == 0) {
-        printf("%-12s (nf_idx %u): pkts received %u, avg_pkt_size %lf\n",
+        printf("%s (nf_idx %u): pkts received %u, avg_pkt_size %lf\n",
                nf_names[nf_idx], nf_idx, pkt_num, pkt_size_sum * 1.0 / pkt_num);
       }
       if (pkt_num >= TEST_NPKTS) {
         double time_taken = (rdcycle() - start) / CPU_GHZ * 1e-3;
         printf(
-            "%-12s (nf_idx %u): processed pkts %u, elapsed time (us) %lf, "
+            "%s (nf_idx %u): processed pkts %u, elapsed time (us) %lf, "
             "processing rate %.8lf Mpps\n",
             nf_names[nf_idx], nf_idx, TEST_NPKTS, time_taken,
             (double)(TEST_NPKTS) / time_taken);
@@ -82,10 +96,12 @@ void *loop_func(int nf_idx) {
         goto finished;
       }
     }
-    sendto_batch(sockfd, numpkts, pkt_buf);
+    // sendto_batch(sockfd, numpkts, pkt_buf);
+    sendto_single(sockfd, &pkt_buf_tmp);
   }
 finished:
-  sendto_batch(sockfd, numpkts, pkt_buf);
+  // sendto_batch(sockfd, numpkts, pkt_buf);
+  // sendto_single(sockfd, &pkt_buf_tmp);
   nf_destroy[nf_idx]();
   return NULL;
 }

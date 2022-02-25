@@ -29,6 +29,7 @@ void co_exit(int err) {
   while (1) {
     arch_spin_lock(&exit_lock);
     if (num_exited == NCORES) {
+      // directly die, no need to release
       exit(err);
     } else {
       arch_spin_unlock(&exit_lock);

@@ -123,6 +123,7 @@ static inline void barrier_wait(barrier_t* barrier) {
   while (1) {
     arch_spin_lock(&barrier->lock);
     if (!barrier->countdown) {
+      arch_spin_unlock(&barrier->lock);
       return;
     } else {
       arch_spin_unlock(&barrier->lock);
