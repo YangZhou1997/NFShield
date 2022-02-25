@@ -12,6 +12,10 @@
 
 arch_spinlock_t icenet_lock;
 
+#ifndef NCORES
+#define NCORES 4
+#endif
+
 /**
  * Send one LNIC pkt to indicate that the system has booted
  * and is ready to start processing pkts.
@@ -29,17 +33,11 @@ static void nic_boot_pkt(int nf_idx) {
   eth = (void *)(buf + NET_IP_ALIGN);
   ipv4 = (void *)eth + ETH_HEADER_SIZE;
 
-  printf("%d nic_boot_pkt before mac\n", nf_idx);
-
   uint64_t *pkt_bytes = (uint64_t *)buf;
-  pkt_bytes[0] = MAC_NFTOP << 16;
-  printf("%d nic_boot_pkt before htons\n", nf_idx);
-  // pkt_bytes[1] =
-  //     MAC_NFTOP | ((uint64_t)htons(CUSTOM_PROTO_BASE + nf_idx) << 48);
-  pkt_bytes[1] = MAC_NFTOP | (0x1234ull << 48);
-  printf("%d nic_boot_pkt after htons\n", nf_idx);
+  pkt_bytes[0] = MAC_PKTGEN << 16;
+  pkt_bytes[1] =
+      MAC_NFTOP | ((uint64_t)htons(CUSTOM_PROTO_BASE + NCORES + nf_idx) << 48);
 
-  printf("%d nic_boot_pkt before ipv4\n", nf_idx);
   ipv4->version_ihl = 0x45;
   ipv4->type_of_service = 0;
   ipv4->total_length = htons(BOOT_PKT_LEN - ETH_HEADER_SIZE);
@@ -51,22 +49,21 @@ static void nic_boot_pkt(int nf_idx) {
   ipv4->src_addr = htoni(0);
   ipv4->dst_addr = htoni(0);
 
-  printf("%d nic_boot_pkt before spinlock\n", nf_idx);
   arch_spin_lock(&icenet_lock);
-  printf("%d nic_boot_pkt before nic_send\n", nf_idx);
   nic_send(buf, len);
-  printf("%d nic_boot_pkt after nic_send\n", nf_idx);
   arch_spin_unlock(&icenet_lock);
 }
 
-int recvfrom_batch(int core_id, int buff_size, pkt_t* pkt_buf) {
+int recvfrom_batch(int core_id, int buff_size, pkt_t *pkt_buf) {
   arch_spin_lock(&icenet_lock);
   int cnt = 0;
   while (cnt < MAX_BATCH_SIZE) {
-    if (nic_recv_req_avail() == 0) {
-      arch_spin_unlock(&icenet_lock);
-      return cnt;
-    }
+    // if (nic_recv_req_avail() == 0) {
+    //   arch_spin_unlock(&icenet_lock);
+    //   return cnt;
+    // }
+    printf("recvfrom_batch %d\n", core_id);
+    while (nic_recv_req_avail() == 0) ;
     nic_post_recv_no_check((uintptr_t)pkt_buf[cnt].content);
     pkt_buf[cnt].len = nic_wait_recv();
     cnt++;
@@ -75,19 +72,21 @@ int recvfrom_batch(int core_id, int buff_size, pkt_t* pkt_buf) {
   return cnt;
 }
 
-int recvfrom_single(int core_id, int buff_size, pkt_t* pkt_buf) {
+int recvfrom_single(int core_id, int buff_size, pkt_t *pkt_buf) {
   arch_spin_lock(&icenet_lock);
-  if (nic_recv_req_avail() == 0) {
-    arch_spin_unlock(&icenet_lock);
-    return 0;
-  }
+  // if (nic_recv_req_avail() == 0) {
+  //   arch_spin_unlock(&icenet_lock);
+  //   return 0;
+  // }
+  printf("recvfrom_single %d\n", core_id);
+  while (nic_recv_req_avail() == 0);
   nic_post_recv_no_check((uintptr_t)pkt_buf);
   pkt_buf->len = nic_wait_recv();
   arch_spin_unlock(&icenet_lock);
   return 1;
 }
 
-int sendto_batch(int core_id, int batch_size, pkt_t* pkt_buf) {
+int sendto_batch(int core_id, int batch_size, pkt_t *pkt_buf) {
   arch_spin_lock(&icenet_lock);
   int cnt = 0;
   while (cnt < batch_size) {
@@ -99,8 +98,9 @@ int sendto_batch(int core_id, int batch_size, pkt_t* pkt_buf) {
   return cnt;
 }
 
-int sendto_single(int core_id, pkt_t* pkt_buf) {
+int sendto_single(int core_id, pkt_t *pkt_buf) {
   arch_spin_lock(&icenet_lock);
+  printf("sendto_single %d\n", core_id);
   nic_send(pkt_buf->content, pkt_buf->len);
   arch_spin_unlock(&icenet_lock);
   return 1;

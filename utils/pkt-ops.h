@@ -12,15 +12,30 @@
 static inline void swap_mac_addr(uint8_t *pkt_ptr) {
   uint16_t s;
   uint32_t w;
+  printf("a1: %d\n", (int)pkt_ptr[0]);
+  printf("a2: %d\n", (int)pkt_ptr[1]);
+  printf("a3: %d\n", (int)pkt_ptr[2]);
+  printf("a4: %d\n", (int)pkt_ptr[3]);
+  printf("a5: %d\n", (int)pkt_ptr[4]);
+  printf("a6: %d\n", (int)pkt_ptr[5]);
+  printf("a7: %d\n", (int)pkt_ptr[6]);
+  printf("a8: %d\n", (int)pkt_ptr[7]);
 
+  printf("swap_mac_addr a\n");
   /* assuming an IP/IPV6 pkt i.e. L2 header is 2 byte aligned, 4 byte
    * non-aligned */
   s = *(uint16_t *)pkt_ptr;
+  printf("swap_mac_addr b %u\n", *(uint32_t *)(&pkt_ptr[2]));
   w = *(uint32_t *)(pkt_ptr + 2);
+  printf("swap_mac_addr c\n");
   *(uint16_t *)pkt_ptr = *(uint16_t *)(pkt_ptr + 6);
+  printf("swap_mac_addr d\n");
   *(uint32_t *)(pkt_ptr + 2) = *(uint32_t *)(pkt_ptr + 8);
+  printf("swap_mac_addr e\n");
   *(uint16_t *)(pkt_ptr + 6) = s;
+  printf("swap_mac_addr f\n");
   *(uint32_t *)(pkt_ptr + 8) = w;
+  printf("swap_mac_addr g\n");
 }
 
 #define REVERSE(key)                                                \

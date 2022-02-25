@@ -47,7 +47,8 @@ struct tcp_hdr {
 } __attribute__((__packed__));
 
 typedef struct _pkt {
-  uint16_t len;
+  uint32_t len;
+  // uint16_t len;
   uint8_t content[ETH_MAX_WORDS * 8];
 } pkt_t;
 
