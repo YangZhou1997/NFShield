@@ -33,8 +33,5 @@ void monitoring(uint8_t *pkt_ptr) {
   u32_dleft_add_value(&ht_meta_monitor, flow, 1);
 
   pkt_cnt_monitor++;
-  // if(pkt_cnt_monitor % PRINT_INTERVAL == 0) {
-  //     printf("monitoring %u\n", pkt_cnt_monitor);
-  // }
 }
 void monitoring_destroy() { u32_dleft_destroy(&ht_meta_monitor); }

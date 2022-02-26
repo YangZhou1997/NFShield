@@ -75,10 +75,6 @@ void dpi(uint8_t *pkt_ptr) {
               (void *)&match_total_dpi, &cur);
 
   pkt_cnt_dpi++;
-  // if(pkt_cnt_dpi % PRINT_INTERVAL == 0) {
-  //     printf("dpi %u\n", pkt_cnt_dpi);
-  //     // break;
-  // }
 }
 
 void dpi_destroy() {

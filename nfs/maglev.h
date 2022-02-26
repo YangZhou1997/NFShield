@@ -33,9 +33,6 @@ void maglev(uint8_t *pkt_ptr) {
   set_dst_ip(pkt_ptr, lookup_value);
 
   pkt_cnt_maglev++;
-  // if(pkt_cnt_maglev % PRINT_INTERVAL == 0) {
-  //     printf("maglev %u\n", pkt_cnt_maglev);
-  // }
 }
 
 void maglev_destroy() { maglev_destory_inner(&mag_meta); }
