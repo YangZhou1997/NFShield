@@ -54,16 +54,19 @@ static void nic_boot_pkt(int nf_idx) {
   arch_spin_unlock(&icenet_lock);
 }
 
+#define NON_BLOCKINNG_RECV
 int recvfrom_batch(int core_id, int buff_size, pkt_t *pkt_buf) {
   arch_spin_lock(&icenet_lock);
   int cnt = 0;
   while (cnt < MAX_BATCH_SIZE) {
-    // if (nic_recv_req_avail() == 0) {
-    //   arch_spin_unlock(&icenet_lock);
-    //   return cnt;
-    // }
-    printf("recvfrom_batch %d\n", core_id);
+#ifdef NON_BLOCKINNG_RECV
+    if (nic_recv_req_avail() == 0) {
+      arch_spin_unlock(&icenet_lock);
+      return cnt;
+    }
+#else
     while (nic_recv_req_avail() == 0) ;
+#endif
     nic_post_recv_no_check((uintptr_t)pkt_buf[cnt].content);
     pkt_buf[cnt].len = nic_wait_recv();
     cnt++;
@@ -74,12 +77,14 @@ int recvfrom_batch(int core_id, int buff_size, pkt_t *pkt_buf) {
 
 int recvfrom_single(int core_id, int buff_size, pkt_t *pkt_buf) {
   arch_spin_lock(&icenet_lock);
-  // if (nic_recv_req_avail() == 0) {
-  //   arch_spin_unlock(&icenet_lock);
-  //   return 0;
-  // }
-  printf("recvfrom_single %d\n", core_id);
+#ifdef NON_BLOCKINNG_RECV
+  if (nic_recv_req_avail() == 0) {
+    arch_spin_unlock(&icenet_lock);
+    return 0;
+  }
+#else
   while (nic_recv_req_avail() == 0);
+#endif
   nic_post_recv_no_check((uintptr_t)pkt_buf);
   pkt_buf->len = nic_wait_recv();
   arch_spin_unlock(&icenet_lock);
@@ -100,7 +105,6 @@ int sendto_batch(int core_id, int batch_size, pkt_t *pkt_buf) {
 
 int sendto_single(int core_id, pkt_t *pkt_buf) {
   arch_spin_lock(&icenet_lock);
-  printf("sendto_single %d\n", core_id);
   nic_send(pkt_buf->content, pkt_buf->len);
   arch_spin_unlock(&icenet_lock);
   return 1;

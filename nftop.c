@@ -28,14 +28,10 @@ static void (*nf_destroy[8])();
 
 #define NCORES 4
 static int num_nfs = 0;
-__thread int sockfd = 0;
-pkt_t pkt_buf_all[NCORES][MAX_BATCH_SIZE];
 
 barrier_t nic_boot_pkt_barrier;
 
 void *loop_func(int nf_idx) {
-  pkt_t *pkt_buf = pkt_buf_all[nf_idx];
-  sockfd = nf_idx;
   if (nf_init[nf_idx]() < 0) {
     printf("nf_init error, exit\n");
     exit(0);
@@ -50,21 +46,20 @@ void *loop_func(int nf_idx) {
     return NULL;
   }
 
-  int numpkts = 0;
   uint64_t start = rdcycle();
   uint64_t pkt_size_sum = 0;
   uint32_t pkt_num = 0;
+  pkt_t cur_pkt;
   while (1) {
-    pkt_t pkt_buf_tmp;
-    numpkts = recvfrom_single(sockfd, BUF_SIZ, &pkt_buf_tmp);
+    int numpkts = recvfrom_single(nf_idx, BUF_SIZ, &cur_pkt);
     if (numpkts <= 0) {
       continue;
     }
     printf("[loop_func %d] receiving numpkts %d\n", nf_idx, numpkts);
     for (int i = 0; i < numpkts; i++) {
-      nf_process[nf_idx](&pkt_buf_tmp.content[0] + NET_IP_ALIGN);
+      nf_process[nf_idx](cur_pkt.content + NET_IP_ALIGN);
 
-      pkt_size_sum += pkt_buf_tmp.len;
+      pkt_size_sum += cur_pkt.len;
       pkt_num++;
 
       if (pkt_num % PRINT_INTERVAL == 0) {
@@ -80,18 +75,16 @@ void *loop_func(int nf_idx) {
             (double)(TEST_NPKTS) / time_taken);
         // stopping the pktgen.
         struct tcp_hdr *tcph =
-            (struct tcp_hdr *)(pkt_buf[i].content + sizeof(struct ipv4_hdr) +
-                               sizeof(struct ether_hdr));
+            (struct tcp_hdr *)(cur_pkt.content + ETH_HEADER_SIZE +
+                               IP_HEADER_SIZE);
         tcph->recv_ack = 0xFFFFFFFF;
         goto finished;
       }
     }
-    // sendto_batch(sockfd, numpkts, pkt_buf);
-    sendto_single(sockfd, &pkt_buf_tmp);
+    sendto_single(nf_idx, &cur_pkt);
   }
 finished:
-  // sendto_batch(sockfd, numpkts, pkt_buf);
-  // sendto_single(sockfd, &pkt_buf_tmp);
+  sendto_single(nf_idx, &cur_pkt);
   nf_destroy[nf_idx]();
   return NULL;
 }
@@ -110,7 +103,7 @@ void init_nfs_once() {
     return;
   }
   if_inited = 1;
-  
+
   barrier_init(NCORES, &nic_boot_pkt_barrier);
   malloc_addblock(malloc_bytes, MALLOC_SIZE);
 
