@@ -94,7 +94,7 @@ finished:
 
 #define NUM_BUFS 30
 uint64_t buffers_all[NCORES][NUM_BUFS][ETH_MAX_WORDS];
-void batch_loop_func(int nf_idx) {
+void* batch_loop_func(int nf_idx) {
   if (nf_init[nf_idx]() < 0) {
     printf("nf_init error, exit\n");
     exit(0);
@@ -112,7 +112,7 @@ void batch_loop_func(int nf_idx) {
   uint64_t start = rdcycle();
   uint64_t pkt_size_sum = 0;
   uint32_t pkt_num = 0;
-  uint64_t **buffers = buffers_all[nf_idx];
+  uint64_t (*buffers)[190] = buffers_all[nf_idx];
   int i = 0, len = 0;
 
   while (1) {
@@ -120,6 +120,7 @@ void batch_loop_func(int nf_idx) {
     for (i = 0; i < NUM_BUFS; i++) {
       len = nic_wait_recv();
       nf_process[nf_idx]((uint8_t *)buffers[i] + NET_IP_ALIGN);
+      // printf("[batch_loop_func %d] pkt_num %d\n", nf_idx, pkt_num);
 
       pkt_size_sum += len;
       pkt_num++;
@@ -151,6 +152,7 @@ void batch_loop_func(int nf_idx) {
 
 finished:
   nic_post_send(buffers[i], len);
+  nic_wait_send_batch(i + 1);
   nf_destroy[nf_idx]();
   return NULL;
 }
