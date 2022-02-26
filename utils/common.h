@@ -4,16 +4,11 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-// #include <pthread.h>
-// #include <sched.h>
 
 #define U32 0
 #define U16 1
 #define TUPLE 2
 #define BOOL 3
-
-#define PRINT_INTERVAL (10 * 1024)
-// #define PRINT_INTERVAL (1)
 
 #define MAX(x, y) (x > y ? x : y)
 #define MIN(x, y) (x < y ? x : y)
@@ -52,31 +47,9 @@ typedef struct {
 #define CMS_SH3 52757
 #define CMS_SH4 83233
 
-// int set_affinity(uint32_t cpu_id){
-//     cpu_set_t cpuset;
-//     CPU_ZERO(&cpuset);
-//     CPU_SET(cpu_id, &cpuset);
-//     pthread_t thread = pthread_self();
-//     return pthread_setaffinity_np(thread, sizeof(cpuset), &cpuset);
-// }
-
-// inline void barrier(){
-//     asm volatile("": : :"memory");
-// }
-
-// // only work on X86
-// inline uint64_t rdtsc(){
-// 	uint32_t a, d;
-// 	asm volatile("rdtsc" : "=a" (a), "=d" (d));
-// 	return ((uint64_t)a) | (((uint64_t)d) << 32);
-// }
-
 #define CPU_GHZ (3.2)
 #define BUF_SIZ 1536
 #define MAX_BATCH_SIZE 32
-
-#define TEST_NPKTS (2 * 50 * 1024)
-#define MAX_UNACK_WINDOW 512
 
 #define DEFAULT_IF "eth0"
 #define ETH_P_IP 0x0800  /* Internet Protocol packet	*/

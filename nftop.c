@@ -14,9 +14,7 @@
 
 int l2_fwd_init() { return 0; }
 void l2_fwd(uint8_t *pkt_ptr) {
-  printf("l2_fwd a\n");
   swap_mac_addr(pkt_ptr);
-  printf("l2_fwd b\n");
   return;
 }
 void l2_fwd_destroy() { return; }
@@ -25,6 +23,10 @@ static char *nf_names[8];
 static int (*nf_init[8])();
 static void (*nf_process[8])(uint8_t *);
 static void (*nf_destroy[8])();
+
+#define WARMUP_NPKTS 10000
+#define TEST_NPKTS 20000
+#define PRINT_INTERVAL 10000
 
 #define NCORES 4
 static int num_nfs = 0;
@@ -55,7 +57,7 @@ void *loop_func(int nf_idx) {
     if (numpkts <= 0) {
       continue;
     }
-    printf("[loop_func %d] receiving numpkts %d\n", nf_idx, numpkts);
+    // printf("[loop_func %d] receiving numpkts %d\n", nf_idx, numpkts);
     for (int i = 0; i < numpkts; i++) {
       nf_process[nf_idx](cur_pkt.content + NET_IP_ALIGN);
 
@@ -63,16 +65,17 @@ void *loop_func(int nf_idx) {
       pkt_num++;
 
       if (pkt_num % PRINT_INTERVAL == 0) {
-        printf("%s (nf_idx %u): pkts received %u, avg_pkt_size %lf\n",
-               nf_names[nf_idx], nf_idx, pkt_num, pkt_size_sum * 1.0 / pkt_num);
+        printf("%s (nf_idx %u): pkts received %u, avg_pkt_size %lu\n",
+               nf_names[nf_idx], nf_idx, pkt_num, pkt_size_sum / pkt_num);
       }
-      if (pkt_num >= TEST_NPKTS) {
+      if (pkt_num >= TEST_NPKTS + WARMUP_NPKTS) {
         double time_taken = (rdcycle() - start) / CPU_GHZ * 1e-3;
         printf(
-            "%s (nf_idx %u): processed pkts %u, elapsed time (us) %lf, "
-            "processing rate %.8lf Mpps\n",
-            nf_names[nf_idx], nf_idx, TEST_NPKTS, time_taken,
-            (double)(TEST_NPKTS) / time_taken);
+            "%s (nf_idx %u): processed pkts %u, elapsed time %lu us, "
+            "processing rate %lu Kpps\n",
+            nf_names[nf_idx], nf_idx, TEST_NPKTS + WARMUP_NPKTS,
+            (uint64_t)time_taken,
+            (uint64_t)((TEST_NPKTS + WARMUP_NPKTS) / time_taken * 1e3));
         // stopping the pktgen.
         struct tcp_hdr *tcph =
             (struct tcp_hdr *)(cur_pkt.content + ETH_HEADER_SIZE +
