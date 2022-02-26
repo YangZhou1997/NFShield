@@ -92,6 +92,69 @@ finished:
   return NULL;
 }
 
+#define NUM_BUFS 30
+uint64_t buffers_all[NCORES][NUM_BUFS][ETH_MAX_WORDS];
+void batch_loop_func(int nf_idx) {
+  if (nf_init[nf_idx]() < 0) {
+    printf("nf_init error, exit\n");
+    exit(0);
+  }
+
+  nic_boot_pkt(nf_idx);
+  barrier_wait(&nic_boot_pkt_barrier);
+  printf("%d loop_func after barrier_wait\n", nf_idx);
+
+  // debugging purpose
+  if (nf_idx != 0) {
+    return NULL;
+  }
+
+  uint64_t start = rdcycle();
+  uint64_t pkt_size_sum = 0;
+  uint32_t pkt_num = 0;
+  uint64_t **buffers = buffers_all[nf_idx];
+  int i = 0, len = 0;
+
+  while (1) {
+    nic_post_recv_batch(buffers, NUM_BUFS);
+    for (i = 0; i < NUM_BUFS; i++) {
+      len = nic_wait_recv();
+      nf_process[nf_idx]((uint8_t *)buffers[i] + NET_IP_ALIGN);
+
+      pkt_size_sum += len;
+      pkt_num++;
+
+      if (pkt_num % PRINT_INTERVAL == 0) {
+        printf("%s (nf_idx %u): pkts received %u, avg_pkt_size %lu\n",
+               nf_names[nf_idx], nf_idx, pkt_num, pkt_size_sum / pkt_num);
+      }
+      if (pkt_num >= TEST_NPKTS + WARMUP_NPKTS) {
+        double time_taken = (rdcycle() - start) / CPU_GHZ * 1e-3;
+        printf(
+            "%s (nf_idx %u): processed pkts %u, elapsed time %lu us, "
+            "processing rate %lu Kpps\n",
+            nf_names[nf_idx], nf_idx, TEST_NPKTS + WARMUP_NPKTS,
+            (uint64_t)time_taken,
+            (uint64_t)((TEST_NPKTS + WARMUP_NPKTS) / time_taken * 1e3));
+        // stopping the pktgen.
+        struct tcp_hdr *tcph =
+            (struct tcp_hdr *)((uint8_t *)buffers[i] + ETH_HEADER_SIZE +
+                               IP_HEADER_SIZE);
+        tcph->recv_ack = 0xFFFFFFFF;
+        goto finished;
+      }
+      nic_post_send(buffers[i], len);
+    }
+    // wait for all send operations to complete
+    nic_wait_send_batch(NUM_BUFS);
+  }
+
+finished:
+  nic_post_send(buffers[i], len);
+  nf_destroy[nf_idx]();
+  return NULL;
+}
+
 // 1.5GB memory for malloc
 #define MALLOC_SIZE (1536 * 1024 * 1024)
 static uint8_t malloc_bytes[MALLOC_SIZE];
@@ -156,5 +219,6 @@ void init_nfs_once() {
 
 void thread_entry(int cid, int nc) {
   init_nfs_once();
-  loop_func(cid);
+  // loop_func(cid);
+  batch_loop_func(cid);
 }
