@@ -16,8 +16,11 @@ static uint32_t match_total_dpi = 0;
 static uint32_t pkt_cnt_dpi = 0;
 
 int dpi_init() {
+  printf("dpi_init a\n");
   srandom(0xCFF32987);
+  printf("dpi_init b\n");
   acsm = acsmNew2(NULL, NULL, NULL);
+  printf("dpi_init c\n");
   if (!acsm) {
     printf("acsm init failed\n");
     return -1;
@@ -54,7 +57,9 @@ int dpi_init() {
   acsmDumpSparseDFA_Banded(acsm, f_dump);
 #else
   MY_FILE f_restore;
+  printf("dpi_init a\n");
   init_my_fread(file_ac_raw, fsize_ac_raw, &f_restore);
+  printf("dpi_init b\n");
   acsmRestoreSparseDFA_Banded(acsm, &f_restore);
 #endif
 
