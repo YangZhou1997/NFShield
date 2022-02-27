@@ -105,7 +105,7 @@ void __attribute__((weak)) thread_entry(int cid, int nc) {
   // for the case of single-threaded programs, only let core 0 proceed.
   //   while (cid != 0);
   printstr("Implement thread_entry(), foo!\n");
-  return -1;
+  return;
 }
 
 // int __attribute__((weak)) main(int argc, char** argv)

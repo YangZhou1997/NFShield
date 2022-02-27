@@ -37,5 +37,6 @@ acl_fw_hashmap_dleft.o: ./data_embed/acl_fw_hashmap_dleft.c
 syscalls_test: syscalls_test.c
 	gcc $(CONFIG) -o syscalls_test syscalls_test.c
 
+# note that we retain ac.o and acl_xx.o as they rarely change
 clean: 
-	rm -f *.riscv *.o syscalls_test
+	rm -f *.riscv syscalls.o syscalls_test

@@ -2,17 +2,23 @@
 
 ## Install git LFS to get the data files (if you has not installed)
 ```
+# on ubuntu
 curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | sudo bash
 sudo apt-get install git-lfs
 git lfs install
 # inside rep
 git lfs pull
 ```
+```
+# on centos
+sudo yum install git-lfs
+```
 For the other OS, please refer to [this page](https://github.com/git-lfs/git-lfs/wiki/Installation). 
-Also, make sure your git has version 2.3+ (`git --version`)
 
-## Build embedded .h data files
-We embed some necessary data into .h files, so bare-metal binaries can directly include and load them without file IO.  
+Note that your git mush have version 2.3+ (checking by `git --version`) to let git-lfs work. 
+
+## Build embedded .c data files
+We embed some necessary data into .c files, so bare-metal binaries can directly include (via `extern`) and load them without file IO. 
 ```
 cd data_prep && ./hexembed_run.sh && cd -
 ```
@@ -28,11 +34,17 @@ Enter `y` if prompting any confirmation questions.
 
 ## Prepare riscv64 NF binary
 ```
-make CONFIG='-DNF_STRINGS=\"l2_fwd:l2_fwd:l2_fwd:l2_fwd\"'
+make CONFIG='-DNF_STRINGS=\"l2_fwd\"'
 ```
-This will build a `nftop.riscv` binary running l2_fwd on four cores, and copy it with necessary `.ini`, and `.json` to `$HOME/firesim/deploy/workloads`. You can then go there to start firesim simulation.
+This will build a `nftop.riscv` binary that runs l2_fwd on the first core (while the rest three cores are busy waiting), and copy it with necessary `.ini`, and `.json` to `$HOME/firesim/deploy/workloads`. You can then go there to start firesim simulation. 
 
-Note that a fresh make would take ~10min, in order to build the necessary embedded data from .c. After the fresh make, these embedded data will be stored as *.o and reused in the following make.
+You can change `DNF_STRINGS` to other NF to test new NFs: `acl_fw`, `dpi`, `lpm`, `maglev`, `monitoring`, `nat_tcp_v4`, `mem_test`. 
+
+Currently, due to the lack of IO virtualization, we cannnot let multiple NFs efficiently share the IceNIC. Once having IO virtualization, we can build a `nftop.riscv` that runs different NFs on four cores by `make CONFIG='-DNF_STRINGS=\"l2_fwd:lpm:maglev:acl_fw\"'`.
+
+A fresh make would take ~10min, in order to build the necessary embedded data from `data_embed/*.c`. After the fresh make, these embedded data will be stored as `*.o` and reused in the following make. 
+
+Note that before testing new NFs by remaking with a new `CONFIG`, you should `make clean` to clear old binaries (eg, nftop.riscv, syscalls.o), but it will **not** remove *.o embedded data (which rarely gets changed). 
 
 ## Run firesim simulation
 ```
@@ -45,4 +57,4 @@ firesim terminaterunfarm -c workloads/nftop.ini
 ```
 
 ## Get simulation results
-TODO
+You can either check the switchlog in firesim manager instance after simulation ends, or login to the switch simulation instance, and `cat cat switch_slot_0/switchlog`, where you can see the packet processing rate and bandwidth. 
