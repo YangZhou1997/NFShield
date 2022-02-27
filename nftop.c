@@ -49,40 +49,38 @@ void *loop_func(int nf_idx) {
   }
 
   uint64_t start = rdcycle();
-  uint64_t pkt_size_sum = 0;
+  // uint64_t pkt_size_sum = 0;
   uint32_t pkt_num = 0;
   pkt_t cur_pkt;
   while (1) {
     int numpkts = recvfrom_single(nf_idx, BUF_SIZ, &cur_pkt);
-    if (numpkts <= 0) {
+    if (numpkts == 0) {
       continue;
     }
     // printf("[loop_func %d] receiving numpkts %d\n", nf_idx, numpkts);
-    for (int i = 0; i < numpkts; i++) {
-      nf_process[nf_idx](cur_pkt.content + NET_IP_ALIGN);
+    nf_process[nf_idx](cur_pkt.content + NET_IP_ALIGN);
 
-      pkt_size_sum += cur_pkt.len;
-      pkt_num++;
+    // pkt_size_sum += cur_pkt.len;
+    pkt_num++;
 
-      if (pkt_num % PRINT_INTERVAL == 0) {
-        printf("%s (nf_idx %u): pkts received %u, avg_pkt_size %lu\n",
-               nf_names[nf_idx], nf_idx, pkt_num, pkt_size_sum / pkt_num);
-      }
-      if (pkt_num >= TEST_NPKTS + WARMUP_NPKTS) {
-        double time_taken = (rdcycle() - start) / CPU_GHZ * 1e-3;
-        printf(
-            "%s (nf_idx %u): processed pkts %u, elapsed time %lu us, "
-            "processing rate %lu Kpps\n",
-            nf_names[nf_idx], nf_idx, TEST_NPKTS + WARMUP_NPKTS,
-            (uint64_t)time_taken,
-            (uint64_t)((TEST_NPKTS + WARMUP_NPKTS) / time_taken * 1e3));
-        // stopping the pktgen.
-        struct tcp_hdr *tcph =
-            (struct tcp_hdr *)(cur_pkt.content + ETH_HEADER_SIZE +
-                               IP_HEADER_SIZE);
-        tcph->recv_ack = 0xFFFFFFFF;
-        goto finished;
-      }
+    // if (pkt_num % PRINT_INTERVAL == 0) {
+    //   printf("%s (nf_idx %u): pkts received %u, avg_pkt_size %lu\n",
+    //          nf_names[nf_idx], nf_idx, pkt_num, pkt_size_sum / pkt_num);
+    // }
+    if (pkt_num >= TEST_NPKTS + WARMUP_NPKTS) {
+      double time_taken = (rdcycle() - start) / CPU_GHZ * 1e-3;
+      printf(
+          "%s (nf_idx %u): processed pkts %u, elapsed time %lu us, "
+          "processing rate %lu Kpps\n",
+          nf_names[nf_idx], nf_idx, TEST_NPKTS + WARMUP_NPKTS,
+          (uint64_t)time_taken,
+          (uint64_t)((TEST_NPKTS + WARMUP_NPKTS) / time_taken * 1e3));
+      // stopping the pktgen.
+      struct tcp_hdr *tcph =
+          (struct tcp_hdr *)(cur_pkt.content + ETH_HEADER_SIZE +
+                             IP_HEADER_SIZE);
+      tcph->recv_ack = 0xFFFFFFFF;
+      goto finished;
     }
     sendto_single(nf_idx, &cur_pkt);
   }
@@ -91,10 +89,10 @@ finished:
   nf_destroy[nf_idx]();
   return NULL;
 }
-
-#define NUM_BUFS 30
+// 30->14.2Mpps, 60->14.6Mpps, 90->14.9Mpps, 120->13.9Mpps
+#define NUM_BUFS 120
 uint64_t buffers_all[NCORES][NUM_BUFS][ETH_MAX_WORDS];
-void* batch_loop_func(int nf_idx) {
+void *batch_loop_func(int nf_idx) {
   if (nf_init[nf_idx]() < 0) {
     printf("nf_init error, exit\n");
     exit(0);
@@ -110,9 +108,9 @@ void* batch_loop_func(int nf_idx) {
   }
 
   uint64_t start = rdcycle();
-  uint64_t pkt_size_sum = 0;
+  // uint64_t pkt_size_sum = 0;
   uint32_t pkt_num = 0;
-  uint64_t (*buffers)[190] = buffers_all[nf_idx];
+  uint64_t(*buffers)[190] = buffers_all[nf_idx];
   int i = 0, len = 0;
 
   while (1) {
@@ -122,13 +120,15 @@ void* batch_loop_func(int nf_idx) {
       nf_process[nf_idx]((uint8_t *)buffers[i] + NET_IP_ALIGN);
       // printf("[batch_loop_func %d] pkt_num %d\n", nf_idx, pkt_num);
 
-      pkt_size_sum += len;
+      // pkt_size_sum += len;
       pkt_num++;
 
-      if (pkt_num % PRINT_INTERVAL == 0) {
-        printf("%s (nf_idx %u): pkts received %u, avg_pkt_size %lu\n",
-               nf_names[nf_idx], nf_idx, pkt_num, pkt_size_sum / pkt_num);
-      }
+      // !!! division operation on riscv take around 32-24 cycles, it is really
+      // !!! costly (eg, bring 14.5Mpps to 0.45Mpps), we must avoid it
+      // if (pkt_num % PRINT_INTERVAL == 0) {
+      //   printf("%s (nf_idx %u): pkts received %u, avg_pkt_size %lu\n",
+      //          nf_names[nf_idx], nf_idx, pkt_num, pkt_size_sum / pkt_num);
+      // }
       if (pkt_num >= TEST_NPKTS + WARMUP_NPKTS) {
         double time_taken = (rdcycle() - start) / CPU_GHZ * 1e-3;
         printf(
@@ -221,6 +221,6 @@ void init_nfs_once() {
 
 void thread_entry(int cid, int nc) {
   init_nfs_once();
-  // loop_func(cid);
-  batch_loop_func(cid);
+  // loop_func(cid);  // 8.85Mpps
+  batch_loop_func(cid); //
 }
