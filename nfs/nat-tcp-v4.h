@@ -18,11 +18,11 @@ static uint32_t pkt_cnt_nat = 0;
 static int FAU_PORTS = 0;
 
 int nat_tcp_v4_init() {
+  srandom(0xCFF32987);
   if (-1 == tuple_dleft_init("nat-tcp-v4", HT_SIZE_NAT, &ht_meta_nat)) {
     printf("bootmemory allocation error\n");
     return 0;
   }
-  srandom(0xCFF32987);
   printf("nat init done!\n");
   return 0;
 }

@@ -7,15 +7,16 @@
 #include "../utils/pkt-header.h"
 #include "../utils/search_ac2.h"
 #include "../utils/icenic_util.h"
-// #include "../data_embed/ac.h"
-const unsigned long long fsize_ac_raw = 220991739L;
-const unsigned char file_ac_raw[] = {0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1};
+// defined in  "../data_embed/ac.h"
+extern const unsigned long long fsize_ac_raw;
+extern const unsigned char file_ac_raw[];
 
 static ACSM_STRUCT2 *acsm;
 static uint32_t match_total_dpi = 0;
 static uint32_t pkt_cnt_dpi = 0;
 
 int dpi_init() {
+  srandom(0xCFF32987);
   acsm = acsmNew2(NULL, NULL, NULL);
   if (!acsm) {
     printf("acsm init failed\n");
@@ -57,7 +58,6 @@ int dpi_init() {
   acsmRestoreSparseDFA_Banded(acsm, &f_restore);
 #endif
 
-  srandom(0xCFF32987);
   printf("dpi init done!\n");
   return 0;
 }

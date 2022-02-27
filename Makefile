@@ -11,7 +11,7 @@ TEST_PROGS = nftop
 
 default: $(addsuffix .riscv,$(TEST_PROGS))
 
-%.riscv: %.o crt.o syscalls.o
+%.riscv: %.o crt.o syscalls.o ac.o acl_fw_hashmap_dleft.o
 	$(CC) -T ./utils/link.ld $(LDFLAGS) $^ -o $@
 	cp *.ini ${FIRESIM}/
 	cp *.json ${FIRESIM}/
@@ -25,6 +25,12 @@ syscalls.o: ./utils/syscalls.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 %.o: ./utils/%.S
+	$(CC) $(CFLAGS) -c $< -o $@
+
+ac.o: ./data_embed/ac.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+acl_fw_hashmap_dleft.o: ./data_embed/acl_fw_hashmap_dleft.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # make CONFIG='-DNF_STRINGS=\"l2_fwd:nat_tcp_v4:dpi:acl_fw\"' syscalls_test
