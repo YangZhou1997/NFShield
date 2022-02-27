@@ -19,8 +19,6 @@ static inline void swap_mac_addr(uint8_t *pkt_ptr) {
   memcpy(tmp_mac, eth->d_addr.addr_bytes, MAC_ADDR_SIZE);
   memcpy(eth->d_addr.addr_bytes, eth->s_addr.addr_bytes, MAC_ADDR_SIZE);
   memcpy(eth->s_addr.addr_bytes, tmp_mac, MAC_ADDR_SIZE);
-
-  return 0;
 }
 
 #define REVERSE(key)                                                \

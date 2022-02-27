@@ -57,7 +57,7 @@ int dpi_init() {
   acsmRestoreSparseDFA_Banded(acsm, &f_restore);
 #endif
 
-  srandom((unsigned)time(NULL));
+  srandom(0xCFF32987);
   printf("dpi init done!\n");
   return 0;
 }

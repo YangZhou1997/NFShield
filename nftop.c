@@ -34,9 +34,11 @@ static int num_nfs = 0;
 barrier_t nic_boot_pkt_barrier;
 
 void *loop_func(int nf_idx) {
-  if (nf_init[nf_idx]() < 0) {
-    printf("nf_init error, exit\n");
-    exit(0);
+  if (nf_idx < num_nfs) {
+    if (nf_init[nf_idx]() < 0) {
+      printf("nf_init error, exit\n");
+      exit(0);
+    }
   }
 
   nic_boot_pkt(nf_idx);
@@ -45,7 +47,7 @@ void *loop_func(int nf_idx) {
 
   // the rest of core will busy spin
   if (nf_idx >= num_nfs) {
-    return;
+    return NULL;
   }
 
   uint64_t start = rdcycle();
@@ -94,9 +96,11 @@ finished:
 #define NUM_BUFS 30
 uint64_t buffers_all[NCORES][NUM_BUFS][ETH_MAX_WORDS];
 void *batch_loop_func(int nf_idx) {
-  if (nf_init[nf_idx]() < 0) {
-    printf("nf_init error, exit\n");
-    exit(0);
+  if (nf_idx < num_nfs) {
+    if (nf_init[nf_idx]() < 0) {
+      printf("nf_init error, exit\n");
+      exit(0);
+    }
   }
 
   nic_boot_pkt(nf_idx);
@@ -105,7 +109,7 @@ void *batch_loop_func(int nf_idx) {
 
   // the rest of core will busy spin
   if (nf_idx >= num_nfs) {
-    return;
+    return NULL;
   }
 
   uint64_t start = rdcycle();

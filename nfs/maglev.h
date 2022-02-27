@@ -13,12 +13,12 @@ static uint32_t pkt_cnt_maglev = 0;
 
 static maglev_meta_t mag_meta;
 int maglev_init() {
+  srandom(0xCFF32987);
   for (int i = 0; i < N; i++) {
     backend_ip[i] = random();
     backend_status[i] = HEALTHY;
   }
   maglev_init_inner("maglev", M, N, backend_ip, backend_status, &mag_meta);
-  srandom((unsigned)time(NULL));
   printf("maglev init done!\n");
   return 0;
 }

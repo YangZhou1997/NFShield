@@ -42,7 +42,7 @@ int maglev_init_inner(char *table_name, uint32_t lookup_entry_num,
   total_size =
       lookup_entry_num * sizeof(int) +
       backend_num * (sizeof(uint32_t) + sizeof(uint32_t) * lookup_entry_num +
-                     sizeof(uint8_t) + sizeof(uint32_t));
+                     sizeof(uint32_t) + sizeof(uint8_t));
 
   block_ptr = malloc(total_size);
   if (block_ptr == NULL) return -1;
@@ -57,15 +57,16 @@ int maglev_init_inner(char *table_name, uint32_t lookup_entry_num,
   mag_ptr->permutation = CAST_PTR(
       uint32_t *, CAST_PTR(char *, block_ptr) + lookup_entry_num * sizeof(int) +
                       backend_num * sizeof(uint32_t));
-  mag_ptr->backend_status = CAST_PTR(
-      uint8_t *, CAST_PTR(char *, block_ptr) + lookup_entry_num * sizeof(int) +
-                     backend_num * sizeof(uint32_t) +
-                     backend_num * lookup_entry_num * sizeof(uint32_t));
   mag_ptr->next = CAST_PTR(
       uint32_t *, CAST_PTR(char *, block_ptr) + lookup_entry_num * sizeof(int) +
                       backend_num * sizeof(uint32_t) +
-                      backend_num * lookup_entry_num * sizeof(uint32_t) +
-                      backend_num * sizeof(uint8_t));
+                      backend_num * lookup_entry_num * sizeof(uint32_t));
+  // put uint8_t array to the last to avoid unaligned memory access.
+  mag_ptr->backend_status = CAST_PTR(
+      uint8_t *, CAST_PTR(char *, block_ptr) + lookup_entry_num * sizeof(int) +
+                     backend_num * sizeof(uint32_t) +
+                     backend_num * lookup_entry_num * sizeof(uint32_t) +
+                     backend_num * sizeof(uint32_t));
 
   if (backend_ip == NULL || backend_status == NULL) return 1;
 
