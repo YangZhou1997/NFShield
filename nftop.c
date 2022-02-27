@@ -43,11 +43,6 @@ void *loop_func(int nf_idx) {
   barrier_wait(&nic_boot_pkt_barrier);
   printf("%d loop_func after barrier_wait\n", nf_idx);
 
-  // debugging purpose
-  if (nf_idx != 0) {
-    return NULL;
-  }
-
   uint64_t start = rdcycle();
   // uint64_t pkt_size_sum = 0;
   uint32_t pkt_num = 0;
@@ -61,12 +56,12 @@ void *loop_func(int nf_idx) {
     nf_process[nf_idx](cur_pkt.content + NET_IP_ALIGN);
 
     // pkt_size_sum += cur_pkt.len;
-    pkt_num++;
-
     // if (pkt_num % PRINT_INTERVAL == 0) {
     //   printf("%s (nf_idx %u): pkts received %u, avg_pkt_size %lu\n",
     //          nf_names[nf_idx], nf_idx, pkt_num, pkt_size_sum / pkt_num);
     // }
+
+    pkt_num++;
     if (pkt_num >= TEST_NPKTS + WARMUP_NPKTS) {
       double time_taken = (rdcycle() - start) / CPU_GHZ * 1e-3;
       printf(
@@ -89,8 +84,9 @@ finished:
   nf_destroy[nf_idx]();
   return NULL;
 }
+
 // 30->14.2Mpps, 60->14.6Mpps, 90->14.9Mpps, 120->13.9Mpps
-#define NUM_BUFS 120
+#define NUM_BUFS 30
 uint64_t buffers_all[NCORES][NUM_BUFS][ETH_MAX_WORDS];
 void *batch_loop_func(int nf_idx) {
   if (nf_init[nf_idx]() < 0) {
@@ -101,11 +97,6 @@ void *batch_loop_func(int nf_idx) {
   nic_boot_pkt(nf_idx);
   barrier_wait(&nic_boot_pkt_barrier);
   printf("%d loop_func after barrier_wait\n", nf_idx);
-
-  // debugging purpose
-  if (nf_idx != 0) {
-    return NULL;
-  }
 
   uint64_t start = rdcycle();
   // uint64_t pkt_size_sum = 0;
@@ -121,14 +112,14 @@ void *batch_loop_func(int nf_idx) {
       // printf("[batch_loop_func %d] pkt_num %d\n", nf_idx, pkt_num);
 
       // pkt_size_sum += len;
-      pkt_num++;
-
       // !!! division operation on riscv take around 32-24 cycles, it is really
       // !!! costly (eg, bring 14.5Mpps to 0.45Mpps), we must avoid it
       // if (pkt_num % PRINT_INTERVAL == 0) {
       //   printf("%s (nf_idx %u): pkts received %u, avg_pkt_size %lu\n",
       //          nf_names[nf_idx], nf_idx, pkt_num, pkt_size_sum / pkt_num);
       // }
+
+      pkt_num++;
       if (pkt_num >= TEST_NPKTS + WARMUP_NPKTS) {
         double time_taken = (rdcycle() - start) / CPU_GHZ * 1e-3;
         printf(
@@ -206,8 +197,8 @@ void init_nfs_once() {
     }
   }
 
-  if (num_nfs != 4) {
-    printf("Only support num_nfs == 4!\n");
+  if (num_nfs > 4) {
+    printf("Only support num_nfs <= 4!\n");
     exit(0);
   }
 
@@ -221,6 +212,11 @@ void init_nfs_once() {
 
 void thread_entry(int cid, int nc) {
   init_nfs_once();
+  // the rest of core will busy spin
+  if (cid >= num_nfs) {
+    return;
+  }
+  // only num_nfs cores are running NFs
   // loop_func(cid);  // 8.85Mpps
-  batch_loop_func(cid); //
+  batch_loop_func(cid);  // 14.2Mpps
 }
