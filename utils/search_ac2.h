@@ -397,16 +397,23 @@ typedef enum _Acsm2MemoryType {
   ACSM2_MEMORY_TYPE__MATCHLIST,
   ACSM2_MEMORY_TYPE__TRANSTABLE,
   ACSM2_MEMORY_TYPE__FAILSTATE
-
 } Acsm2MemoryType;
+
+void *calloc(size_t n, size_t size) {
+  // it is really weird that after removing this printf, calloc will cause
+  // deadlock --- it will recursively call calloc().
+  printf("calling calloc\n");
+  void *p = malloc(n * size);
+  printf("calling calloc done\n");
+  memset(p, 0, n * size);
+  return p;
+}
 
 /*
  *
  */
 static void *AC_MALLOC(int n, Acsm2MemoryType type) {
-  printf("AC_MALLOC a\n");
   void *p = calloc(1, n);
-  printf("AC_MALLOC b\n");
 
   if (p != NULL) {
     switch (type) {
@@ -1601,13 +1608,10 @@ ACSM_STRUCT2 *acsmNew2(void (*userfree)(void *p),
                        void (*neg_list_free)(void **p)) {
   ACSM_STRUCT2 *p;
 
-  printf("acsmNew2 a\n");
   init_xlatcase();
-  printf("acsmNew2 b\n");
 
   p = (ACSM_STRUCT2 *)AC_MALLOC(sizeof(ACSM_STRUCT2), ACSM2_MEMORY_TYPE__NONE);
   MEMASSERT(p, "acsmNew");
-  printf("acsmNew2 c\n");
 
   if (p) {
     memset(p, 0, sizeof(ACSM_STRUCT2));
@@ -1622,7 +1626,6 @@ ACSM_STRUCT2 *acsmNew2(void (*userfree)(void *p),
     p->optiontreefree = optiontreefree;
     p->neg_list_free = neg_list_free;
   }
-  printf("acsmNew2 d\n");
 
   return p;
 }
@@ -2628,7 +2631,6 @@ static inline int acsmDumpSparseDFA_Banded(ACSM_STRUCT2 *acsm, FILE *f) {
 }
 
 static inline int acsmRestoreSparseDFA_Banded(ACSM_STRUCT2 *acsm, MY_FILE *f) {
-  printf("acsmRestoreSparseDFA_Banded a\n");
   ACSM_PATTERN2 *mlist;
 
   my_fread(&acsm->acsmMaxStates, sizeof(int), 1, f);
@@ -2636,7 +2638,6 @@ static inline int acsmRestoreSparseDFA_Banded(ACSM_STRUCT2 *acsm, MY_FILE *f) {
   my_fread(&acsm->acsmNumStates, sizeof(int), 1, f);
   printf("acsmNumStates: %d\n", acsm->acsmNumStates);
 
-  printf("acsmRestoreSparseDFA_Banded c\n");
   unsigned int NextStateSize = acsm->acsmNumStates;
   acsm->acsmNextState = malloc(sizeof(acstate_t *) * NextStateSize);
   acstate_t *ps = malloc(sizeof(acstate_t) * 4);
