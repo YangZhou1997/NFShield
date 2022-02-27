@@ -17,11 +17,11 @@ static u32_dleft_meta_t ht_meta_monitor;
 static uint32_t pkt_cnt_monitor = 0;
 
 int monitoring_init() {
+  srandom(0xCFF32987);
   if (-1 == u32_dleft_init("monitoring", HT_SIZE_MON, &ht_meta_monitor)) {
     printf("bootmemory allocation error\n");
     return 0;
   }
-  srandom(0xCFF32987);
   printf("monitoring init done!\n");
   return 0;
 }

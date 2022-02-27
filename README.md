@@ -32,6 +32,8 @@ make CONFIG='-DNF_STRINGS=\"l2_fwd:l2_fwd:l2_fwd:l2_fwd\"'
 ```
 This will build a `nftop.riscv` binary running l2_fwd on four cores, and copy it with necessary `.ini`, and `.json` to `$HOME/firesim/deploy/workloads`. You can then go there to start firesim simulation.
 
+Note that a fresh make would take ~10min, in order to build the necessary embedded data from .c. After the fresh make, these embedded data will be stored as *.o and reused in the following make.
+
 ## Run firesim simulation
 ```
 cd $HOME/firesim/ && source sourceme-f1-manager.sh && firesim managerinit

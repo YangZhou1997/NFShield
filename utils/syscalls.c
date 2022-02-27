@@ -461,7 +461,7 @@ long atol(const char* str) {
   return sign ? -res : res;
 }
 
-static uint64_t random_state;
+static __thread uint64_t random_state;
 
 void srandom(unsigned int seed) {
   random_state = seed;

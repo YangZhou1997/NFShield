@@ -11,11 +11,9 @@
 #undef TYPE_STR
 #undef TYPED_NAME
 #include "../utils/pkt-ops.h"
-#include "../data_embed/acl_fw_hashmap_dleft.h"
-// const unsigned long long fsize_acl_fw_hashmap_dleft_raw = 1153138L;
-// const unsigned char file_acl_fw_hashmap_dleft_raw[] = {
-//     0x0a, 0x0d, 0x6e, 0x6d, 0x0a, 0x10, 0x05, 0x05,
-//     0x9e, 0xda, 0x00, 0x50, 0x06, 0x01, 0x0a, 0x0f};
+// defined in "../data_embed/acl_fw_hashmap_dleft.h"
+extern const unsigned long long fsize_acl_fw_hashmap_dleft_raw;
+extern const unsigned char file_acl_fw_hashmap_dleft_raw[];
 
 // 200000 / 0.875, make sure we use the same about of memory as netbricks.
 #define HT_SIZE_ACL_FW 228571
@@ -660,6 +658,7 @@ static uint32_t pkt_cnt_acl_fw = 0;
 static uint32_t pkt_count_match = 0;
 
 int acl_fw_init() {
+  srandom(0xCFF32987);
   if (-1 == bool_dleft_init("acl-fw", HT_SIZE_ACL_FW, &ht_meta_acl_fw)) {
     printf("bootmemory allocation error\n");
     return -1;
@@ -670,7 +669,6 @@ int acl_fw_init() {
     return -1;
   }
   fill_rules();
-  srandom(0xCFF32987);
 
 // #define FW_DUMP
 #ifndef FW_DUMP
