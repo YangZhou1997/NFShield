@@ -404,7 +404,9 @@ typedef enum _Acsm2MemoryType {
  *
  */
 static void *AC_MALLOC(int n, Acsm2MemoryType type) {
+  printf("AC_MALLOC a\n");
   void *p = calloc(1, n);
+  printf("AC_MALLOC b\n");
 
   if (p != NULL) {
     switch (type) {
