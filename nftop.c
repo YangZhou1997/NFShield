@@ -43,6 +43,11 @@ void *loop_func(int nf_idx) {
   barrier_wait(&nic_boot_pkt_barrier);
   printf("%d loop_func after barrier_wait\n", nf_idx);
 
+  // the rest of core will busy spin
+  if (nf_idx >= num_nfs) {
+    return;
+  }
+
   uint64_t start = rdcycle();
   // uint64_t pkt_size_sum = 0;
   uint32_t pkt_num = 0;
@@ -97,6 +102,11 @@ void *batch_loop_func(int nf_idx) {
   nic_boot_pkt(nf_idx);
   barrier_wait(&nic_boot_pkt_barrier);
   printf("%d loop_func after barrier_wait\n", nf_idx);
+
+  // the rest of core will busy spin
+  if (nf_idx >= num_nfs) {
+    return;
+  }
 
   uint64_t start = rdcycle();
   // uint64_t pkt_size_sum = 0;
@@ -212,10 +222,6 @@ void init_nfs_once() {
 
 void thread_entry(int cid, int nc) {
   init_nfs_once();
-  // the rest of core will busy spin
-  if (cid >= num_nfs) {
-    return;
-  }
   // only num_nfs cores are running NFs
   // loop_func(cid);  // 8.85Mpps
   batch_loop_func(cid);  // 14.2Mpps
