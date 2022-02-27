@@ -598,15 +598,6 @@ void* malloc(size_t size) {
   return ptr;
 }
 
-void* calloc(size_t n, size_t size) {
-  printf("calloc a\n");
-  void* p = malloc(n * size);
-  printf("calloc b\n");
-  memset(p, 0, n * size);
-  printf("calloc c\n");
-  return p;
-}
-
 void free(void* ptr) {
   // Don't free a NULL pointer..
   if (ptr) {

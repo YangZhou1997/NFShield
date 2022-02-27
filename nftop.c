@@ -96,9 +96,7 @@ finished:
 #define NUM_BUFS 30
 uint64_t buffers_all[NCORES][NUM_BUFS][ETH_MAX_WORDS];
 void *batch_loop_func(int nf_idx) {
-  printf("batch_loop_func a\n");
   if (nf_idx < num_nfs) {
-    printf("batch_loop_func b\n");
     if (nf_init[nf_idx]() < 0) {
       printf("nf_init error, exit\n");
       exit(0);
