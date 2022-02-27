@@ -9,7 +9,7 @@ static uint32_t pkt_cnt_mem_test = 0;
 static uint8_t array[MEM_TEST_TOTAL_BYTES];
 
 int mem_test_init() {
-  srandom((unsigned)time(NULL));
+  srandom(0xCFF32987);
   printf("mem_test init done!\n");
   return 0;
 }

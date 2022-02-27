@@ -21,7 +21,7 @@ int monitoring_init() {
     printf("bootmemory allocation error\n");
     return 0;
   }
-  srandom((unsigned)time(NULL));
+  srandom(0xCFF32987);
   printf("monitoring init done!\n");
   return 0;
 }

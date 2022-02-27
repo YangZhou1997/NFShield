@@ -10,7 +10,7 @@ static uint32_t gate_count[GATE_NUM];
 static uint32_t pkt_cnt_lpm = 0;
 
 int lpm_init() {
-  srandom((unsigned)time(NULL));
+  srandom(0xCFF32987);
 
 #define RAND8 (random() & 0xFF)
 #define TOIP(a, b, c, d) ((a << 24) | (b << 16) | (c << 8) | d)
