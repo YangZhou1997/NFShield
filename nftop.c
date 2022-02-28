@@ -227,6 +227,15 @@ void init_nfs_once() {
 void thread_entry(int cid, int nc) {
   init_nfs_once();
   // only num_nfs cores are running NFs
-  // loop_func(cid);  // 8.85Mpps
-  batch_loop_func(cid);  // 14.2Mpps
+
+  if (num_nfs == 1) {
+    // currently, overlapping packet IO with computation via batching requires
+    // the NF to exclusively occypy the register set, thus only supporting one
+    // NF
+    batch_loop_func(cid);  // 14.2Mpps l2_fwd
+  } else {
+    // If we disallow batchinng, using simple spinlock can let multiple NFs
+    // share the same register set, but this is less efficient.
+    loop_func(cid);  // 8.85Mpps l2_fwd
+  }
 }
