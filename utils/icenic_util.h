@@ -1,6 +1,11 @@
 #ifndef RISCV_ICENIC_H
 #define RISCV_ICENIC_H
 
+// this file is mostly adapted from NanoPU:
+// https://github.com/l-nic/chipyard/blob/lnic-dev/tests-icenic/icenic.h, which
+// implements simple post_send/recv(), and check_send/recv() functionality
+// around the icenic registers
+
 #define SIMPLENIC_BASE 0x10016000L
 #define SIMPLENIC_SEND_REQ (SIMPLENIC_BASE + 0)
 #define SIMPLENIC_RECV_REQ (SIMPLENIC_BASE + 8)

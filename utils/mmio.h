@@ -1,6 +1,9 @@
 #ifndef __MMIO_H__
 #define __MMIO_H__
 
+// this file is copied from
+// https://github.com/firesim/network-benchmarks/blob/c4945a77bff8af81d4b9af0daefec4ac0357dd51/common/mmio.h
+
 #include <stdint.h>
 
 static inline void reg_write8(uintptr_t addr, uint8_t data) {

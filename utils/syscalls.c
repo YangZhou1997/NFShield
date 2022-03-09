@@ -1,5 +1,9 @@
 // See LICENSE for license details.
 
+// this file is mostly adapted from
+// https://github.com/firesim/network-benchmarks/blob/c4945a77bff8af81d4b9af0daefec4ac0357dd51/common/syscalls.c,
+// excepted for malloc and string implementation.
+
 #include <limits.h>
 #include <stdarg.h>
 #include <stdint.h>
@@ -489,7 +493,7 @@ time_t time(time_t* tloc) {
 }
 
 // the following malloc is borrowed from
-// https://github.com/embeddedartistry/libmemory
+// https://github.com/embeddedartistry/libmemory/blob/master/src/malloc_freelist.c
 /*
  * Copyright © 2017 Embedded Artistry LLC.
  * License: MIT. See LICENSE file for details.
@@ -670,7 +674,10 @@ int fclose(FILE* stream) {
   exit(0);
 }
 
-// the following is borrowed from https://github.com/aethaniel/minilib-c
+// the following is borrowed from
+// https://github.com/aethaniel/minilib-c/tree/master/ctype,
+// https://github.com/aethaniel/minilib-c/blob/master/stdlib/strtol.c, and
+// https://github.com/aethaniel/minilib-c/blob/master/stdio/scanf.c
 
 int isdigit(int c) { return (unsigned)c - '0' < 10; }
 int isprint(int c) { return (c >= 0x20 && c <= 0x7E); }
@@ -846,7 +853,7 @@ end_parse:
 }
 
 // borrowed from
-// https://github.com/embeddedartistry/libc/blob/master/src/string/
+// https://github.com/embeddedartistry/libc/blob/master/src/string/strtok.c
 
 char* __strtok_r(char* /*s*/ /*s*/, const char* /*delim*/ /*delim*/,
                  char** /*last*/ /*last*/);
