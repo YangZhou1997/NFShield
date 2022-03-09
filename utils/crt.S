@@ -1,5 +1,7 @@
 # See LICENSE for license details.
 
+# this file is mostly adapted from FireSim: https://github.com/firesim/network-benchmarks/tree/c4945a77bff8af81d4b9af0daefec4ac0357dd51/common; I change "li a1, 1" to "li a1, 4" to run bare-metal binary on quad cores
+
 #include "encoding.h"
 
 #if __riscv_xlen == 64

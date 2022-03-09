@@ -1,6 +1,9 @@
 #ifndef LL_H__
 #define LL_H__
 
+// this file is copied from
+// https://github.com/embeddedartistry/libmemory/blob/master/dependencies/lib/linkedlist/ll.h
+
 #include <stdint.h>
 
 /** @defgroup linkedlist-C C Linked List Interface

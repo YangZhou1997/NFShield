@@ -7,6 +7,8 @@
 /* Setup                                                                */
 /*----------------------------------------------------------------------*/
 
+/* this file is copied from https://github.com/firesim/network-benchmarks/blob/c4945a77bff8af81d4b9af0daefec4ac0357dd51/common/link.ld */
+
 /* The OUTPUT_ARCH command specifies the machine architecture where the
    argument is one of the names used in the BFD library. More
    specifically one of the entires in bfd/cpu-mips.c */

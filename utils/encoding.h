@@ -1,5 +1,8 @@
 // See LICENSE for license details.
 
+// This file is copied from
+// https://github.com/firesim/network-benchmarks/blob/c4945a77bff8af81d4b9af0daefec4ac0357dd51/common/encoding.h
+
 #ifndef RISCV_CSR_ENCODING_H
 #define RISCV_CSR_ENCODING_H
 

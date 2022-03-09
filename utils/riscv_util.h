@@ -1,5 +1,9 @@
 // See LICENSE for license details.
 
+// this file is mostly copied from
+// https://github.com/firesim/network-benchmarks/blob/c4945a77bff8af81d4b9af0daefec4ac0357dd51/common/util.h
+// except for the barrier_t and related function implementation.
+
 #ifndef __UTIL_H
 #define __UTIL_H
 
@@ -41,6 +45,51 @@ extern void setStats(int enable);
     case !!(long)(cond):;   \
   }
 
+static void printArray(const char name[], int n, const int arr[]) {
+#if HOST_DEBUG
+  int i;
+  printf(" %10s :", name);
+  for (i = 0; i < n; i++) printf(" %3d ", arr[i]);
+  printf("\n");
+#endif
+}
+
+static void printDoubleArray(const char name[], int n, const double arr[]) {
+#if HOST_DEBUG
+  int i;
+  printf(" %10s :", name);
+  for (i = 0; i < n; i++) printf(" %g ", arr[i]);
+  printf("\n");
+#endif
+}
+
+static int verify(int n, const volatile int* test, const int* verify) {
+  int i;
+  // Unrolled for faster verification
+  for (i = 0; i < n / 2 * 2; i += 2) {
+    int t0 = test[i], t1 = test[i + 1];
+    int v0 = verify[i], v1 = verify[i + 1];
+    if (t0 != v0) return i + 1;
+    if (t1 != v1) return i + 2;
+  }
+  if (n % 2 != 0 && test[n - 1] != verify[n - 1]) return n;
+  return 0;
+}
+
+static int verifyDouble(int n, const volatile double* test,
+                        const double* verify) {
+  int i;
+  // Unrolled for faster verification
+  for (i = 0; i < n / 2 * 2; i += 2) {
+    double t0 = test[i], t1 = test[i + 1];
+    double v0 = verify[i], v1 = verify[i + 1];
+    int eq1 = t0 == v0, eq2 = t1 == v1;
+    if (!(eq1 & eq2)) return i + 1 + eq1;
+  }
+  if (n % 2 != 0 && test[n - 1] != verify[n - 1]) return n;
+  return 0;
+}
+
 static void __attribute__((noinline)) barrier(int ncores) {
   static volatile int sense;
   static volatile int count;
@@ -57,6 +106,21 @@ static void __attribute__((noinline)) barrier(int ncores) {
       ;
 
   __sync_synchronize();
+}
+
+static uint64_t lfsr(uint64_t x) {
+  uint64_t bit = (x ^ (x >> 1)) & 1;
+  return (x >> 1) | (bit << 62);
+}
+
+static uint16_t compute_checksum(uint16_t* data, int n, uint16_t init) {
+  uint32_t sum = init;
+
+  for (int i = 0; i < n; i++) sum += data[i];
+
+  while ((sum >> 16) != 0) sum = (sum & 0xffff) + (sum >> 16);
+
+  return ~sum & 0xffff;
 }
 
 #ifdef __riscv
