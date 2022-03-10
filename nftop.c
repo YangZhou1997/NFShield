@@ -34,6 +34,7 @@ static int num_nfs = 0;
 barrier_t nic_boot_pkt_barrier;
 
 void *loop_func(int nf_idx) {
+  printf("loop_func nf_idx %d num_nfs %d\n", nf_idx, num_nfs);
   if (nf_idx < num_nfs) {
     if (nf_init[nf_idx]() < 0) {
       printf("nf_init error, exit\n");
@@ -43,12 +44,18 @@ void *loop_func(int nf_idx) {
 
   nic_boot_pkt(nf_idx);
   barrier_wait(&nic_boot_pkt_barrier);
+  // why this printf is necessary to keep program running correctly?
   printf("%d loop_func after barrier_wait\n", nf_idx);
 
   // the rest of core will busy spin
   if (nf_idx >= num_nfs) {
     return NULL;
   }
+
+  // debugging purpose
+  // if (nf_idx == 0) {
+  //   return NULL;
+  // }
 
   uint64_t start = rdcycle();
   // uint64_t pkt_size_sum = 0;
@@ -60,7 +67,7 @@ void *loop_func(int nf_idx) {
       continue;
     }
     // printf("[loop_func %d] receiving numpkts %d\n", nf_idx, numpkts);
-    nf_process[nf_idx](cur_pkt.content + NET_IP_ALIGN);
+    nf_process[nf_idx]((uint8_t*)cur_pkt.content + NET_IP_ALIGN);
 
     // pkt_size_sum += cur_pkt.len;
     // if (pkt_num % PRINT_INTERVAL == 0) {
@@ -79,7 +86,7 @@ void *loop_func(int nf_idx) {
           (uint64_t)((TEST_NPKTS + WARMUP_NPKTS) / time_taken * 1e3));
       // stopping the pktgen.
       struct tcp_hdr *tcph =
-          (struct tcp_hdr *)(cur_pkt.content + ETH_HEADER_SIZE +
+          (struct tcp_hdr *)((uint8_t*)cur_pkt.content + ETH_HEADER_SIZE +
                              IP_HEADER_SIZE);
       tcph->recv_ack = 0xFFFFFFFF;
       goto finished;
@@ -89,6 +96,9 @@ void *loop_func(int nf_idx) {
 finished:
   sendto_single(nf_idx, &cur_pkt);
   nf_destroy[nf_idx]();
+  for (int i = 0; i < 1000000; i++) {
+    asm volatile("nop");
+  }
   return NULL;
 }
 
@@ -96,6 +106,7 @@ finished:
 #define NUM_BUFS 30
 uint64_t buffers_all[NCORES][NUM_BUFS][ETH_MAX_WORDS];
 void *batch_loop_func(int nf_idx) {
+  printf("batch_loop_func nf_idx %d num_nfs %d\n", nf_idx, num_nfs);
   if (nf_idx < num_nfs) {
     if (nf_init[nf_idx]() < 0) {
       printf("nf_init error, exit\n");

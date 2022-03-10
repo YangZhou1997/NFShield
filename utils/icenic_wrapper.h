@@ -85,7 +85,7 @@ int recvfrom_single(int core_id, int buff_size, pkt_t *pkt_buf) {
 #else
   while (nic_recv_req_avail() == 0);
 #endif
-  nic_post_recv_no_check((uintptr_t)pkt_buf);
+  nic_post_recv_no_check((uintptr_t)pkt_buf->content);
   pkt_buf->len = nic_wait_recv();
   arch_spin_unlock(&icenet_lock);
   return 1;
