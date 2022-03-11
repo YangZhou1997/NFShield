@@ -31,6 +31,9 @@ static void (*nf_destroy[8])();
 #define NCORES 4
 static int num_nfs = 0;
 
+// TODO(yangzhou): assign a packet receive queue for each core, so packeted can
+// be delivered based on their eth_type.
+
 barrier_t nic_boot_pkt_barrier;
 
 void *loop_func(int nf_idx) {
@@ -45,8 +48,9 @@ void *loop_func(int nf_idx) {
   nic_boot_pkt(nf_idx);
   barrier_wait(&nic_boot_pkt_barrier);
   // why this printf is necessary to keep program running correctly?
+  // just waiting for NIC initilization finished; either code works
   // printf("%d loop_func after barrier_wait\n", nf_idx);
-  asm volatile("fence");
+  sleep_for_cycles(1000000);
 
   // the rest of core will busy spin
   if (nf_idx >= num_nfs) {
@@ -68,7 +72,7 @@ void *loop_func(int nf_idx) {
       continue;
     }
     // printf("[loop_func %d] receiving numpkts %d\n", nf_idx, numpkts);
-    nf_process[nf_idx]((uint8_t*)cur_pkt.content + NET_IP_ALIGN);
+    nf_process[nf_idx]((uint8_t *)cur_pkt.content + NET_IP_ALIGN);
 
     // pkt_size_sum += cur_pkt.len;
     // if (pkt_num % PRINT_INTERVAL == 0) {
@@ -87,8 +91,8 @@ void *loop_func(int nf_idx) {
           (uint64_t)((TEST_NPKTS + WARMUP_NPKTS) / time_taken * 1e3));
       // stopping the pktgen.
       struct tcp_hdr *tcph =
-          (struct tcp_hdr *)((uint8_t*)cur_pkt.content + ETH_HEADER_SIZE +
-                             IP_HEADER_SIZE);
+          (struct tcp_hdr *)((uint8_t *)cur_pkt.content + NET_IP_ALIGN +
+                             ETH_HEADER_SIZE + IP_HEADER_SIZE);
       tcph->recv_ack = 0xFFFFFFFF;
       goto finished;
     }
@@ -96,10 +100,8 @@ void *loop_func(int nf_idx) {
   }
 finished:
   sendto_single(nf_idx, &cur_pkt);
-  nf_destroy[nf_idx]();
-  for (int i = 0; i < 1000000; i++) {
-    asm volatile("nop");
-  }
+  // wait for switch to receive the 0xFFFFFFFF packet.
+  sleep_for_cycles(1000000);
   return NULL;
 }
 
@@ -117,8 +119,9 @@ void *batch_loop_func(int nf_idx) {
 
   nic_boot_pkt(nf_idx);
   barrier_wait(&nic_boot_pkt_barrier);
+  // just waiting for NIC initilization finished; either code works
   // printf("%d loop_func after barrier_wait\n", nf_idx);
-  asm volatile("fence");
+  sleep_for_cycles(1000000);
 
   // the rest of core will busy spin
   if (nf_idx >= num_nfs) {
@@ -157,8 +160,8 @@ void *batch_loop_func(int nf_idx) {
             (uint64_t)((TEST_NPKTS + WARMUP_NPKTS) / time_taken * 1e3));
         // stopping the pktgen.
         struct tcp_hdr *tcph =
-            (struct tcp_hdr *)((uint8_t *)buffers[i] + ETH_HEADER_SIZE +
-                               IP_HEADER_SIZE);
+            (struct tcp_hdr *)((uint8_t *)buffers[i] + NET_IP_ALIGN +
+                               ETH_HEADER_SIZE + IP_HEADER_SIZE);
         tcph->recv_ack = 0xFFFFFFFF;
         goto finished;
       }
@@ -172,6 +175,8 @@ finished:
   nic_post_send(buffers[i], len);
   nic_wait_send_batch(i + 1);
   nf_destroy[nf_idx]();
+  // wait for switch to receive the 0xFFFFFFFF packet.
+  sleep_for_cycles(1000000);
   return NULL;
 }
 
