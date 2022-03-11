@@ -1,275 +1,234 @@
+#include "./utils/common.h"
+#include "./utils/pkt-ops.h"
+#include "./utils/pkt-header.h"
+#include "./utils/raw_socket.h"
 #include "./nfs/acl-fw.h"
 #include "./nfs/dpi.h"
 #include "./nfs/lpm.h"
 #include "./nfs/maglev.h"
-#include "./nfs/mem-test.h"
 #include "./nfs/monitoring.h"
 #include "./nfs/nat-tcp-v4.h"
-#include "./utils/common.h"
-#include "./utils/encoding.h"
-#include "./utils/icenic_wrapper.h"
-#include "./utils/pkt-header.h"
-#include "./utils/pkt-ops.h"
-#include "config.h"
+#include "./nfs/mem-test.h"
+#include "./utils/parsing_mac.h"
+#include <stdatomic.h>
 
-int l2_fwd_init() { return 0; }
-void l2_fwd(uint8_t *pkt_ptr) {
-  swap_mac_addr(pkt_ptr);
-  return;
+int l2_fwd_init(){
+    return 0;
 }
-void l2_fwd_destroy() { return; }
+void l2_fwd(uint8_t *pkt_ptr){
+    swap_mac_addr(pkt_ptr);
+    return;
+}
+void l2_fwd_destroy(){
+    return;
+}
 
-static char *nf_names[8];
+static char nf_names[8][128];
 static int (*nf_init[8])();
 static void (*nf_process[8])(uint8_t *);
 static void (*nf_destroy[8])();
 
-#define WARMUP_NPKTS 10000
-#define TEST_NPKTS 20000
-#define PRINT_INTERVAL 10000
+static uint8_t dstmac[6];
+__thread int sockfd  = 0;
+__thread struct sockaddr_ll send_sockaddr;
+__thread struct ifreq if_mac;
 
-#define NCORES 4
 static int num_nfs = 0;
+static atomic_uchar print_order = 0;
 
-barrier_t nic_boot_pkt_barrier;
-
-void *loop_func(int nf_idx) {
-  printf("loop_func nf_idx %d num_nfs %d\n", nf_idx, num_nfs);
-  if (nf_idx < num_nfs) {
-    if (nf_init[nf_idx]() < 0) {
-      printf("nf_init error, exit\n");
-      exit(0);
+void *loop_func(void *arg){
+    int nf_idx = *(int*)arg;
+    set_affinity(nf_idx);
+    init_socket(&sockfd, &send_sockaddr, &if_mac, dstmac, nf_idx);
+    
+    int numpkts = 0;
+    struct ether_hdr* eh;
+    pkt_t* pkt_buf[MAX_BATCH_SIZE];
+    for(int i = 0; i < MAX_BATCH_SIZE; i++){
+        pkt_buf[i] = malloc(sizeof(pkt_t));
+        pkt_buf[i]->content = malloc(BUF_SIZ);
     }
-  }
 
-  nic_boot_pkt(nf_idx);
-  barrier_wait(&nic_boot_pkt_barrier);
-  // why this printf is necessary to keep program running correctly?
-  // just waiting for NIC initilization finished; either code works
-  // printf("%d loop_func after barrier_wait\n", nf_idx);
-  sleep_for_cycles(1000000);
-
-  // the rest of core will busy spin
-  if (nf_idx >= num_nfs) {
-    return NULL;
-  }
-
-  uint64_t start = rdcycle();
-  uint64_t end = 0;
-  uint32_t pkt_num = 0;
-  intptr_t pkt_buf = 0;
-  int pkt_len = 0;
-  while (1) {
-    int numpkts = recvfrom_single(nf_idx, &pkt_buf, &pkt_len);
-    if (numpkts == 0) {
-      sleep_for_cycles(100);
-      continue;
+    if(nf_init[nf_idx]() < 0){
+        printf("nf_init error, exit\n");
+        exit(0);
     }
-    // printf("[loop_func %d] receiving numpkts %d\n", nf_idx, numpkts);
-    nf_process[nf_idx]((uint8_t *)pkt_buf + NET_IP_ALIGN);
 
-    pkt_num++;
-    if (pkt_num >= TEST_NPKTS + WARMUP_NPKTS) {
-      end = rdcycle();
-      // stopping the pktgen.
-      struct tcp_hdr *tcph =
-          (struct tcp_hdr *)((uint8_t *)pkt_buf + NET_IP_ALIGN +
-                             ETH_HEADER_SIZE + IP_HEADER_SIZE);
-      tcph->recv_ack = 0xFFFFFFFF;
-      goto finished;
+    struct timeval start, end; 
+    uint64_t pkt_size_sum = 0;
+    uint32_t pkt_num = 0;
+    while(1){
+        numpkts = recvfrom_batch(sockfd, BUF_SIZ, pkt_buf);
+        if(numpkts <= 0){
+            continue;
+        }
+        // printf("[loop_func %d] receiving numpkts %d\n", nf_idx, numpkts);
+        for(int i = 0; i < numpkts; i++){
+            nf_process[nf_idx](pkt_buf[i]->content);
+            // eh = (struct ether_hdr*) pkt_buf[i]->content;
+         
+            pkt_size_sum += pkt_buf[i]->len;
+            
+            pkt_num ++;
+            if(pkt_num % PRINT_INTERVAL == 0){
+                printf("%-12s (nf_idx %u): pkts received %u, avg_pkt_size %lf\n", nf_names[nf_idx], nf_idx, pkt_num, pkt_size_sum * 1.0 / pkt_num);
+            }
+            if(pkt_num == WARMUP_NPKTS){
+                gettimeofday(&start, NULL);
+            }
+            else if(pkt_num >= WARMUP_NPKTS + TEST_NPKTS){
+                gettimeofday(&end, NULL);
+                double time_taken; 
+                time_taken = (end.tv_sec - start.tv_sec) * 1e6; 
+                time_taken = time_taken + (end.tv_usec - start.tv_usec);
+                printf("%-12s (nf_idx %u): processed pkts %u, elapsed time (us) %lf, processing rate %.8lf Mpps\n", 
+                    nf_names[nf_idx], nf_idx, TEST_NPKTS, time_taken, (double)(TEST_NPKTS)/time_taken);
+                // stopping the pktgen. 
+                struct tcp_hdr * tcph = (struct tcp_hdr *) (pkt_buf[i]->content + sizeof(struct ipv4_hdr) + sizeof(struct ether_hdr));
+                tcph->recv_ack = 0xFFFFFFFF;
+                goto finished;
+            }
+        }
+        sendto_batch(sockfd, numpkts, pkt_buf, &send_sockaddr);
     }
-    sendto_single(nf_idx, pkt_buf, pkt_len);
-    asm volatile("fence");
-  }
 finished:
-  sendto_single(nf_idx, pkt_buf, pkt_len);
-  asm volatile("fence");
-  // wait for switch to receive the 0xFFFFFFFF packet.
-  sleep_for_cycles(1000000);
-  nf_destroy[nf_idx]();
-
-  // finally, print out the rate
-  double time_taken = (rdcycle() - start) / CPU_GHZ * 1e-3;
-  printf(
-      "%s (nf_idx %u): processed pkts %u, elapsed time %lu us, "
-      "processing rate %lu Kpps\n",
-      nf_names[nf_idx], nf_idx, TEST_NPKTS + WARMUP_NPKTS, (uint64_t)time_taken,
-      (uint64_t)((TEST_NPKTS + WARMUP_NPKTS) / time_taken * 1e3));
-  return NULL;
-}
-
-// 30->14.2Mpps, 60->14.6Mpps, 90->14.9Mpps, 120->13.9Mpps
-#define NUM_BUFS 30
-uint64_t buffers_all[NCORES][NUM_BUFS][ETH_MAX_WORDS];
-void *batch_loop_func(int nf_idx) {
-  printf("batch_loop_func nf_idx %d num_nfs %d\n", nf_idx, num_nfs);
-  if (nf_idx < num_nfs) {
-    if (nf_init[nf_idx]() < 0) {
-      printf("nf_init error, exit\n");
-      exit(0);
+    sendto_batch(sockfd, numpkts, pkt_buf, &send_sockaddr);
+    nf_destroy[nf_idx]();
+	close(sockfd);
+ 
+    for(int i = 0; i < MAX_BATCH_SIZE; i++){
+        free(pkt_buf[i]->content);
+        free(pkt_buf[i]);
     }
-  }
 
-  nic_boot_pkt(nf_idx);
-  barrier_wait(&nic_boot_pkt_barrier);
-  // just waiting for NIC initilization finished; either code works
-  // printf("%d loop_func after barrier_wait\n", nf_idx);
-  sleep_for_cycles(1000000);
-
-  // the rest of core will busy spin
-  if (nf_idx >= num_nfs) {
-    return NULL;
-  }
-
-  uint64_t start = rdcycle();
-  uint64_t end = 0;
-  uint32_t pkt_num = 0;
-  uint64_t(*buffers)[190] = buffers_all[nf_idx];
-  int i = 0, len = 0;
-
-  while (1) {
-    nic_post_recv_batch(buffers, NUM_BUFS);
-    for (i = 0; i < NUM_BUFS; i++) {
-      len = nic_wait_recv();
-      // printf("[batch_loop_func %d] pkt_num %d\n", nf_idx, pkt_num);
-      nf_process[nf_idx]((uint8_t *)buffers[i] + NET_IP_ALIGN);
-
-      // !!! division operation on riscv take around 32-24 cycles, it is really
-      // !!! costly (eg, bring 14.5Mpps to 0.45Mpps), we must avoid it
-      // if (pkt_num % PRINT_INTERVAL == 0) {
-      //   printf("%s (nf_idx %u): pkts received %u, avg_pkt_size %lu\n",
-      //          nf_names[nf_idx], nf_idx, pkt_num, pkt_size_sum / pkt_num);
-      // }
-
-      pkt_num++;
-      if (pkt_num >= TEST_NPKTS + WARMUP_NPKTS) {
-        end = rdcycle();
-        // stopping the pktgen.
-        struct tcp_hdr *tcph =
-            (struct tcp_hdr *)((uint8_t *)buffers[i] + NET_IP_ALIGN +
-                               ETH_HEADER_SIZE + IP_HEADER_SIZE);
-        tcph->recv_ack = 0xFFFFFFFF;
-        goto finished;
-      }
-      nic_post_send(buffers[i], len);
+    fflush(stdout);
+    sleep(1);
+    print_order ++;
+    // this is used to bypass glibc bugs when calling pthread_join() (https://sourceware.org/bugzilla/show_bug.cgi?id=20116)
+    while(print_order != num_nfs){
+        sleep(1);
     }
-    // wait for all send operations to complete
-    nic_wait_send_batch(NUM_BUFS);
-    asm volatile("fence");
-  }
-
-finished:
-  nic_post_send(buffers[i], len);
-  nic_wait_send_batch(i + 1);
-  asm volatile("fence");
-  // wait for switch to receive the 0xFFFFFFFF packet.
-  sleep_for_cycles(1000000);
-  nf_destroy[nf_idx]();
-
-  // finally, print out the rate
-  double time_taken = (rdcycle() - start) / CPU_GHZ * 1e-3;
-  printf(
-      "%s (nf_idx %u): processed pkts %u, elapsed time %lu us, "
-      "processing rate %lu Kpps\n",
-      nf_names[nf_idx], nf_idx, TEST_NPKTS + WARMUP_NPKTS, (uint64_t)time_taken,
-      (uint64_t)((TEST_NPKTS + WARMUP_NPKTS) / time_taken * 1e3));
-  return NULL;
-}
-
-// 1.5GB memory for malloc
-#define MALLOC_SIZE (1536 * 1024 * 1024)
-static uint8_t malloc_bytes[MALLOC_SIZE];
-
-arch_spinlock_t init_lock;
-int if_inited = 0;
-
-void init_nfs_once() {
-  arch_spin_lock(&init_lock);
-  if (if_inited) {
-    arch_spin_unlock(&init_lock);
-    return;
-  }
-  if_inited = 1;
-
-  barrier_init(NCORES, &nic_boot_pkt_barrier);
-  malloc_addblock(malloc_bytes, MALLOC_SIZE);
-
-  char *nf_names_all[8] = {"l2_fwd", "acl_fw",     "dpi",        "lpm",
-                           "maglev", "monitoring", "nat_tcp_v4", "mem_test"};
-  int (*nf_init_all[8])() = {l2_fwd_init,     acl_fw_init,  dpi_init,
-                             lpm_init,        maglev_init,  monitoring_init,
-                             nat_tcp_v4_init, mem_test_init};
-  void (*nf_process_all[8])(uint8_t *) = {
-      l2_fwd, acl_fw, dpi, lpm, maglev, monitoring, nat_tcp_v4, mem_test};
-  void (*nf_destroy_all[8])() = {
-      l2_fwd_destroy, acl_fw_destroy,     dpi_destroy,        lpm_destroy,
-      maglev_destroy, monitoring_destroy, nat_tcp_v4_destroy, mem_test_destroy};
-
-  printf("NF_STRINGS: %s\n", NF_STRINGS);
-  char buf[512];
-  strcpy(buf, NF_STRINGS);
-
-  char *token;
-  for (token = strtok(buf, ":"); token; token = strtok(NULL, ":")) {
-    printf("token: %s\n", token);
-    for (int i = 0; i < 8; i++) {
-      if (!strcmp(token, nf_names_all[i])) {
-        printf("valid NF #%d: %s\n", num_nfs, token);
-        nf_process[num_nfs] = nf_process_all[i];
-        nf_init[num_nfs] = nf_init_all[i];
-        nf_destroy[num_nfs] = nf_destroy_all[i];
-        nf_names[num_nfs] = nf_names_all[i];
-        num_nfs++;
-        break;
-      }
-    }
-  }
-
-  if (num_nfs > 4) {
-    printf("Only support num_nfs <= 4!\n");
     exit(0);
-  }
-
-  printf("%d NFs: ", num_nfs);
-  for (int i = 0; i < num_nfs; i++) {
-    printf("%s ", nf_names[i]);
-  }
-  printf("\n");
-
-  // setup pkt fifo
-  fifo_init(&global_pkt_ff);
-  for (int i = 0; i < NCORES; i++) {
-    fifo_init(&percore_pkt_ffs[i]);
-  }
-  uint64_t *pkt_buffer =
-      (uint64_t *)malloc(sizeof(uint64_t) * ETH_MAX_WORDS * FIFO_CAPACITY);
-  bool res = fifo_push(&global_pkt_ff, (intptr_t)pkt_buffer, 0);
-  pkt_buffer += ETH_MAX_WORDS;
-  while (res) {
-    res = fifo_push(&global_pkt_ff, (intptr_t)pkt_buffer, 0);
-    pkt_buffer += ETH_MAX_WORDS;
-  }
-  printf("global_pkt_ff size: %u\n", fifo_size(&global_pkt_ff));
-  for (int i = 0; i < NCORES; i++) {
-    printf("percore_pkt_ff size: %u\n", fifo_size(&percore_pkt_ffs[i]));
-  }
-
-  arch_spin_unlock(&init_lock);
 }
 
-void thread_entry(int cid, int nc) {
-  init_nfs_once();
-  // only num_nfs cores are running NFs
+int main(int argc, char* argv[]){
+    nf_process[0] = l2_fwd;
+    nf_process[1] = acl_fw;
+    nf_process[2] = dpi;
+    nf_process[3] = lpm;
+    nf_process[4] = maglev;
+    nf_process[5] = monitoring;
+    nf_process[6] = nat_tcp_v4;
+    nf_process[7] = mem_test;
 
-  if (num_nfs == 1) {
-    // currently, overlapping packet IO with computation via batching requires
-    // the NF to exclusively occypy the register set, thus only supporting one
-    // NF
-    // batch_loop_func(cid);  // 14.2Mpps l2_fwd
-    loop_func(cid);  // 8.85Mpps l2_fwd
-  } else {
-    // If we disallow batchinng, using simple spinlock can let multiple NFs
-    // share the same register set, but this is less efficient.
-    loop_func(cid);  // 8.85Mpps l2_fwd
-  }
+    nf_init[0] = l2_fwd_init;
+    nf_init[1] = acl_fw_init;
+    nf_init[2] = dpi_init;
+    nf_init[3] = lpm_init;
+    nf_init[4] = maglev_init;
+    nf_init[5] = monitoring_init;
+    nf_init[6] = nat_tcp_v4_init;
+    nf_init[7] = mem_test_init;
+
+    nf_destroy[0] = l2_fwd_destroy;
+    nf_destroy[1] = acl_fw_destroy;
+    nf_destroy[2] = dpi_destroy;
+    nf_destroy[3] = lpm_destroy;
+    nf_destroy[4] = maglev_destroy;
+    nf_destroy[5] = monitoring_destroy;
+    nf_destroy[6] = nat_tcp_v4_destroy;
+    nf_destroy[7] = mem_test_destroy;
+
+    int option;
+    while((option = getopt(argc, argv, ":n:d:t:p:")) != -1){
+        switch (option) {
+            case 'n':
+                strcpy(nf_names[num_nfs], optarg);
+                if(strcmp("l2_fwd", optarg) == 0){
+                    nf_process[num_nfs] = l2_fwd;
+                    nf_init[num_nfs] = l2_fwd_init;
+                    nf_destroy[num_nfs] = l2_fwd_destroy;
+                }
+                else if(strcmp("acl_fw", optarg) == 0){
+                    nf_process[num_nfs] = acl_fw;
+                    nf_init[num_nfs] = acl_fw_init;
+                    nf_destroy[num_nfs] = acl_fw_destroy;
+                }
+                else if(strcmp("dpi", optarg) == 0){
+                    nf_process[num_nfs] = dpi;
+                    nf_init[num_nfs] = dpi_init;
+                    nf_destroy[num_nfs] = dpi_destroy;
+                }
+                else if(strcmp("lpm", optarg) == 0){
+                    nf_process[num_nfs] = lpm;
+                    nf_init[num_nfs] = lpm_init;
+                    nf_destroy[num_nfs] = lpm_destroy;
+                }
+                else if(strcmp("maglev", optarg) == 0){
+                    nf_process[num_nfs] = maglev;
+                    nf_init[num_nfs] = maglev_init;
+                    nf_destroy[num_nfs] = maglev_destroy;
+                }
+                else if(strcmp("monitoring", optarg) == 0){
+                    nf_process[num_nfs] = monitoring;
+                    nf_init[num_nfs] = monitoring_init;
+                    nf_destroy[num_nfs] = monitoring_destroy;
+                }
+                else if(strcmp("nat_tcp_v4", optarg) == 0){
+                    nf_process[num_nfs] = nat_tcp_v4;
+                    nf_init[num_nfs] = nat_tcp_v4_init;
+                    nf_destroy[num_nfs] = nat_tcp_v4_destroy;
+                }
+                else if(strcmp("mem_test", optarg) == 0){
+                    nf_process[num_nfs] = mem_test;
+                    nf_init[num_nfs] = mem_test_init;
+                    nf_destroy[num_nfs] = mem_test_destroy;
+                }
+                else{
+                    printf("%s is not a valid nf name\n", optarg);
+                    exit(0);
+                }
+                num_nfs++;
+                break;
+            case 'd':
+                parse_mac(dstmac, optarg);
+                printf("dstmac: %02x:%02x:%02x:%02x:%02x:%02x\n", dstmac[0], dstmac[1], dstmac[2], dstmac[3], dstmac[4], dstmac[5]);
+                break;
+            case 't':
+                total_bytes = atoi(optarg);
+                printf("mem_test total_bytes: %u\n", total_bytes);
+                break;
+            case 'p':
+                access_bytes_per_pkt = atoi(optarg);
+                printf("mem_test access_bytes_per_pkt: %u\n", access_bytes_per_pkt);
+                break;
+            case ':':  
+                printf("option -%c needs a value\n", optopt);  
+                break;  
+            case '?':  
+                printf("unknown option: -%c\n", optopt); 
+                break; 
+        }
+    }
+    if (num_nfs > 4) {
+       printf("Only support num_nfs <= 4!");
+       exit(0);
+    }
+    
+    printf("%d NFs: ", num_nfs);
+    for(int i = 0; i < num_nfs; i++){
+        printf("%s ", nf_names[i]);
+    }
+    printf("\n");
+    
+    pthread_t threads[4];
+    int nf_idx[4] = {0, 1, 2, 3};
+    for(int i = 0; i < num_nfs; i++){
+        pthread_create(&threads[i], NULL, loop_func, (void*)(nf_idx+i));
+    }
+    for(int i = 0; i < num_nfs; i++){
+        pthread_join(threads[i], NULL);
+    }
+
+    return 0;
 }

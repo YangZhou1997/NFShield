@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <arpa/inet.h>
+
 #include <string.h>
 
 #include "../utils/common.h"
@@ -8,26 +8,24 @@
 #include "../utils/common.h"
 #include "../utils/pkt-puller.h"
 #include "../utils/search_ac2.h"
+
 // #define AC_DUMP
 
-static ACSM_STRUCT2 *acsm;
-static uint32_t match_total_dpi = 0;
-static uint32_t pkt_cnt_dpi = 0;
-
-int dpi_init(){
-    acsm = acsmNew2(NULL, NULL, NULL);
+int main(){
+    
+    ACSM_STRUCT2 *acsm = acsmNew2(NULL, NULL, NULL);
     if (!acsm){
         printf("acsm init failed\n");
         return -1;
     }
     acsm->acsmFormat = ACF_BANDED;
     
-    match_total_dpi = 0;
+    uint32_t match_total = 0;
 
 // #define AC_DUMP
 #ifdef AC_DUMP
     // You must use absolute address, otherwise gem5 will show "Page table fault when accessing virtual address 0"
-    FILE * file_rule = fopen("./data/sentense.rules", "r");
+    FILE * file_rule = fopen("../data/sentense.rules", "r");
     char rule_buf[1024];
     int cnt = 0, len = 0;
     while(fgets(rule_buf, 1023, file_rule)) {
@@ -47,37 +45,36 @@ int dpi_init(){
     acsmPrintInfo2(acsm);    
     printf("dpi AhoCorasick graph built up!\n");
 
-    FILE * f_dump = fopen("./data/ac.raw", "w");
+    FILE * f_dump = fopen("../data/ac.raw", "w");
     acsmDumpSparseDFA_Banded(acsm, f_dump);
 #else
-    FILE * f_restore = fopen("./data/ac.raw", "r");
+    FILE * f_restore = fopen("../data/ac.raw", "r");
     acsmRestoreSparseDFA_Banded(acsm, f_restore);
-    // printf("ac restore done!\n");
+    printf("ac restore done!\n");
 #endif
 
     srand((unsigned)time(NULL));
-    printf("dpi init done!\n");
-    return 0;
-}
+   
+    load_pkt("../data/ictf2010_100kflow.dat");
+    uint32_t pkt_cnt = 0;
+    while(1){
+        pkt_t *raw_pkt = next_pkt(0);
+        uint8_t *pkt_ptr = raw_pkt->content;
+        uint16_t pkt_len = raw_pkt->len;
+        swap_mac_addr(pkt_ptr);
 
-void dpi(uint8_t *pkt_ptr){
-    struct ipv4_hdr *iph = (struct ipv4_hdr *) (pkt_ptr + sizeof(struct ether_hdr));
-    uint16_t pkt_len = htons(((struct ipv4_hdr *)iph)->total_length) + sizeof(struct ether_hdr);
+        int cur = 0;
+        acsmSearch2(acsm, (unsigned char *)(pkt_ptr + 54), pkt_len - 54, MatchFound, (void *)&match_total, &cur);
 
-    swap_mac_addr(pkt_ptr);
-
-    int cur = 0;
-    acsmSearch2(acsm, (unsigned char *)(pkt_ptr + 54), pkt_len - 54, MatchFound, (void *)&match_total_dpi, &cur);
-
-    pkt_cnt_dpi ++;
-    // if(pkt_cnt_dpi % PRINT_INTERVAL == 0) {
-    //     printf("dpi %u\n", pkt_cnt_dpi);
-    //     // break;
-    // }
-}
-
-void dpi_destroy(){
-    printf("match_total_dpi: %u\n", match_total_dpi);
-    // TODO: ac2 free has some error. 
+        pkt_cnt ++;
+         if(pkt_cnt % PRINT_INTERVAL == 0) {
+             printf("dpi %u\n", pkt_cnt);
+             // break;
+         }
+    }    
+    printf("match_total: %u\n", match_total);
+#ifdef AC_DUMP
     // acsmFree2(acsm);
+#endif
+    return 0;
 }
