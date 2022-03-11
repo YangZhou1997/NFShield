@@ -61,6 +61,7 @@ void *loop_func(int nf_idx) {
   while (1) {
     int numpkts = recvfrom_single(nf_idx, &pkt_buf, &pkt_len);
     if (numpkts == 0) {
+      sleep_for_cycles(100);
       continue;
     }
     // printf("[loop_func %d] receiving numpkts %d\n", nf_idx, numpkts);
@@ -83,9 +84,11 @@ void *loop_func(int nf_idx) {
       goto finished;
     }
     sendto_single(nf_idx, pkt_buf, pkt_len);
+    asm volatile("fence");
   }
 finished:
   sendto_single(nf_idx, pkt_buf, pkt_len);
+  asm volatile("fence");
   // wait for switch to receive the 0xFFFFFFFF packet.
   sleep_for_cycles(1000000);
   return NULL;
@@ -253,7 +256,8 @@ void thread_entry(int cid, int nc) {
     // currently, overlapping packet IO with computation via batching requires
     // the NF to exclusively occypy the register set, thus only supporting one
     // NF
-    batch_loop_func(cid);  // 14.2Mpps l2_fwd
+    // batch_loop_func(cid);  // 14.2Mpps l2_fwd
+    loop_func(cid);  // 8.85Mpps l2_fwd
   } else {
     // If we disallow batchinng, using simple spinlock can let multiple NFs
     // share the same register set, but this is less efficient.

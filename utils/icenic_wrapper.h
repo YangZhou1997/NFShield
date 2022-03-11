@@ -86,7 +86,7 @@ int recvfrom_single(int core_id, intptr_t *pkt_buf, int *pkt_len) {
   int ether_type = (int)htons((eh_recv->ether_type));
   int nf_idx = ether_type - CUSTOM_PROTO_BASE;
   if (nf_idx < 0 || nf_idx >= NCORES) {
-    printf("recvfrom_single nf_idx error\n");
+    printf("recvfrom_single nf_idx error %d\n", nf_idx);
     exit(0);
   }
 
