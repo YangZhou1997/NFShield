@@ -6,6 +6,7 @@
 #include <unistd.h>
 
 #include "common.h"
+#include "fifo.h"
 #include "icenic_util.h"
 #include "pkt-header.h"
 #include "riscv_util.h"
@@ -54,59 +55,66 @@ static void nic_boot_pkt(int nf_idx) {
   arch_spin_unlock(&icenet_lock);
 }
 
-#define NON_BLOCKINNG_RECV
-int recvfrom_batch(int core_id, int buff_size, pkt_t *pkt_buf) {
-  arch_spin_lock(&icenet_lock);
-  int cnt = 0;
-  while (cnt < MAX_BATCH_SIZE) {
-#ifdef NON_BLOCKINNG_RECV
-    if (nic_recv_req_avail() == 0) {
-      arch_spin_unlock(&icenet_lock);
-      return cnt;
-    }
-#else
-    while (nic_recv_req_avail() == 0) ;
-#endif
-    nic_post_recv_no_check((uintptr_t)pkt_buf[cnt].content);
-    pkt_buf[cnt].len = nic_wait_recv();
-    cnt++;
-  }
-  arch_spin_unlock(&icenet_lock);
-  return cnt;
-}
+// global_pkt_ff holds all pkt_bufs, its pkt_len is meaningless
+static fifo_t global_pkt_ff;
+// percore_pkt_ffs holds per-core pkt_bufs and pkt_lens
+static fifo_t percore_pkt_ffs[NCORES];
 
-int recvfrom_single(int core_id, int buff_size, pkt_t *pkt_buf) {
+int recvfrom_single(int core_id, intptr_t *pkt_buf, int *pkt_len) {
+  // first check local fifo
+  if (fifo_pop(&percore_pkt_ffs[core_id], pkt_buf, pkt_len)) {
+    return 1;
+  }
+
+  // popping a new pkt_buf
+  intptr_t new_pkt_buf = 0;
+  int new_pkt_len = 0;
+  bool res = fifo_pop(&global_pkt_ff, &new_pkt_buf, &new_pkt_len);
+  if (!res) {
+    printf("recvfrom_single global fifo_pop error\n");
+    exit(0);
+  }
+
+  // receiving a new pkt
   arch_spin_lock(&icenet_lock);
-#ifdef NON_BLOCKINNG_RECV
-  if (nic_recv_req_avail() == 0) {
-    arch_spin_unlock(&icenet_lock);
+  new_pkt_len = nic_recv((void *)new_pkt_buf);
+  arch_spin_unlock(&icenet_lock);
+
+  // identify which core this pkt should head to
+  struct ether_hdr *eh_recv =
+      (struct ether_hdr *)((uint8_t *)new_pkt_buf + NET_IP_ALIGN);
+  int ether_type = (int)htons((eh_recv->ether_type));
+  int nf_idx = ether_type - CUSTOM_PROTO_BASE;
+  if (nf_idx < 0 || nf_idx >= NCORES) {
+    printf("recvfrom_single nf_idx error\n");
+    exit(0);
+  }
+
+  // lucky, getting the right packet
+  if (nf_idx == core_id) {
+    *pkt_buf = new_pkt_buf;
+    *pkt_len = new_pkt_len;
+    return 1;
+  } else {
+    bool res = fifo_push(&percore_pkt_ffs[nf_idx], new_pkt_buf, new_pkt_len);
+    if (!res) {
+      printf("recvfrom_single local fifo_push error\n");
+      exit(0);
+    }
     return 0;
   }
-#else
-  while (nic_recv_req_avail() == 0);
-#endif
-  nic_post_recv_no_check((uintptr_t)pkt_buf->content);
-  pkt_buf->len = nic_wait_recv();
-  arch_spin_unlock(&icenet_lock);
-  return 1;
 }
 
-int sendto_batch(int core_id, int batch_size, pkt_t *pkt_buf) {
+int sendto_single(int core_id, intptr_t pkt_buf, int pkt_len) {
   arch_spin_lock(&icenet_lock);
-  int cnt = 0;
-  while (cnt < batch_size) {
-    nic_post_send(pkt_buf[cnt].content, pkt_buf[cnt].len);
-    cnt++;
+  nic_send((void *)pkt_buf, pkt_len);
+  arch_spin_unlock(&icenet_lock);
+  // recycle the pkt_buf
+  bool res = fifo_push(&global_pkt_ff, pkt_buf, 0);
+  if (!res) {
+    printf("sendto_single global fifo_push error\n");
+    exit(0);
   }
-  nic_wait_send_batch(cnt);
-  arch_spin_unlock(&icenet_lock);
-  return cnt;
-}
-
-int sendto_single(int core_id, pkt_t *pkt_buf) {
-  arch_spin_lock(&icenet_lock);
-  nic_send(pkt_buf->content, pkt_buf->len);
-  arch_spin_unlock(&icenet_lock);
   return 1;
 }
 #endif
