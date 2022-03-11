@@ -198,4 +198,10 @@ static inline void barrier_wait(barrier_t* barrier) {
   }
 }
 
+static inline void sleep_for_cycles(int n) {
+  for (int i = 0; i < n; i++) {
+    asm volatile("nop");
+  }
+}
+
 #endif  //__UTIL_H
