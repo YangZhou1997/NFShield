@@ -17,6 +17,9 @@ arch_spinlock_t icenet_lock;
 #define NCORES 4
 #endif
 
+// this function is modified from
+// https://github.com/l-nic/chipyard/blob/lnic-dev/tests-icenic/icenic.h
+
 /**
  * Send one LNIC pkt to indicate that the system has booted
  * and is ready to start processing pkts.
