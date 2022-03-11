@@ -55,6 +55,7 @@ void *loop_func(int nf_idx) {
   }
 
   uint64_t start = rdcycle();
+  uint64_t end = 0;
   uint32_t pkt_num = 0;
   intptr_t pkt_buf = 0;
   int pkt_len = 0;
@@ -69,13 +70,7 @@ void *loop_func(int nf_idx) {
 
     pkt_num++;
     if (pkt_num >= TEST_NPKTS + WARMUP_NPKTS) {
-      double time_taken = (rdcycle() - start) / CPU_GHZ * 1e-3;
-      printf(
-          "%s (nf_idx %u): processed pkts %u, elapsed time %lu us, "
-          "processing rate %lu Kpps\n",
-          nf_names[nf_idx], nf_idx, TEST_NPKTS + WARMUP_NPKTS,
-          (uint64_t)time_taken,
-          (uint64_t)((TEST_NPKTS + WARMUP_NPKTS) / time_taken * 1e3));
+      end = rdcycle();
       // stopping the pktgen.
       struct tcp_hdr *tcph =
           (struct tcp_hdr *)((uint8_t *)pkt_buf + NET_IP_ALIGN +
@@ -91,6 +86,15 @@ finished:
   asm volatile("fence");
   // wait for switch to receive the 0xFFFFFFFF packet.
   sleep_for_cycles(1000000);
+  nf_destroy[nf_idx]();
+
+  // finally, print out the rate
+  double time_taken = (rdcycle() - start) / CPU_GHZ * 1e-3;
+  printf(
+      "%s (nf_idx %u): processed pkts %u, elapsed time %lu us, "
+      "processing rate %lu Kpps\n",
+      nf_names[nf_idx], nf_idx, TEST_NPKTS + WARMUP_NPKTS, (uint64_t)time_taken,
+      (uint64_t)((TEST_NPKTS + WARMUP_NPKTS) / time_taken * 1e3));
   return NULL;
 }
 
@@ -118,6 +122,7 @@ void *batch_loop_func(int nf_idx) {
   }
 
   uint64_t start = rdcycle();
+  uint64_t end = 0;
   uint32_t pkt_num = 0;
   uint64_t(*buffers)[190] = buffers_all[nf_idx];
   int i = 0, len = 0;
@@ -138,13 +143,7 @@ void *batch_loop_func(int nf_idx) {
 
       pkt_num++;
       if (pkt_num >= TEST_NPKTS + WARMUP_NPKTS) {
-        double time_taken = (rdcycle() - start) / CPU_GHZ * 1e-3;
-        printf(
-            "%s (nf_idx %u): processed pkts %u, elapsed time %lu us, "
-            "processing rate %lu Kpps\n",
-            nf_names[nf_idx], nf_idx, TEST_NPKTS + WARMUP_NPKTS,
-            (uint64_t)time_taken,
-            (uint64_t)((TEST_NPKTS + WARMUP_NPKTS) / time_taken * 1e3));
+        end = rdcycle();
         // stopping the pktgen.
         struct tcp_hdr *tcph =
             (struct tcp_hdr *)((uint8_t *)buffers[i] + NET_IP_ALIGN +
@@ -156,14 +155,24 @@ void *batch_loop_func(int nf_idx) {
     }
     // wait for all send operations to complete
     nic_wait_send_batch(NUM_BUFS);
+    asm volatile("fence");
   }
 
 finished:
   nic_post_send(buffers[i], len);
   nic_wait_send_batch(i + 1);
-  nf_destroy[nf_idx]();
+  asm volatile("fence");
   // wait for switch to receive the 0xFFFFFFFF packet.
   sleep_for_cycles(1000000);
+  nf_destroy[nf_idx]();
+
+  // finally, print out the rate
+  double time_taken = (rdcycle() - start) / CPU_GHZ * 1e-3;
+  printf(
+      "%s (nf_idx %u): processed pkts %u, elapsed time %lu us, "
+      "processing rate %lu Kpps\n",
+      nf_names[nf_idx], nf_idx, TEST_NPKTS + WARMUP_NPKTS, (uint64_t)time_taken,
+      (uint64_t)((TEST_NPKTS + WARMUP_NPKTS) / time_taken * 1e3));
   return NULL;
 }
 
