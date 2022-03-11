@@ -31,9 +31,6 @@ static void (*nf_destroy[8])();
 #define NCORES 4
 static int num_nfs = 0;
 
-// TODO(yangzhou): assign a packet receive queue for each core, so packeted can
-// be delivered based on their eth_type.
-
 barrier_t nic_boot_pkt_barrier;
 
 void *loop_func(int nf_idx) {
@@ -57,28 +54,17 @@ void *loop_func(int nf_idx) {
     return NULL;
   }
 
-  // debugging purpose
-  // if (nf_idx == 0) {
-  //   return NULL;
-  // }
-
   uint64_t start = rdcycle();
-  // uint64_t pkt_size_sum = 0;
   uint32_t pkt_num = 0;
-  pkt_t cur_pkt;
+  intptr_t pkt_buf = 0;
+  int pkt_len = 0;
   while (1) {
-    int numpkts = recvfrom_single(nf_idx, BUF_SIZ, &cur_pkt);
+    int numpkts = recvfrom_single(nf_idx, &pkt_buf, &pkt_len);
     if (numpkts == 0) {
       continue;
     }
     // printf("[loop_func %d] receiving numpkts %d\n", nf_idx, numpkts);
-    nf_process[nf_idx]((uint8_t *)cur_pkt.content + NET_IP_ALIGN);
-
-    // pkt_size_sum += cur_pkt.len;
-    // if (pkt_num % PRINT_INTERVAL == 0) {
-    //   printf("%s (nf_idx %u): pkts received %u, avg_pkt_size %lu\n",
-    //          nf_names[nf_idx], nf_idx, pkt_num, pkt_size_sum / pkt_num);
-    // }
+    nf_process[nf_idx]((uint8_t *)pkt_buf + NET_IP_ALIGN);
 
     pkt_num++;
     if (pkt_num >= TEST_NPKTS + WARMUP_NPKTS) {
@@ -91,15 +77,15 @@ void *loop_func(int nf_idx) {
           (uint64_t)((TEST_NPKTS + WARMUP_NPKTS) / time_taken * 1e3));
       // stopping the pktgen.
       struct tcp_hdr *tcph =
-          (struct tcp_hdr *)((uint8_t *)cur_pkt.content + NET_IP_ALIGN +
+          (struct tcp_hdr *)((uint8_t *)pkt_buf + NET_IP_ALIGN +
                              ETH_HEADER_SIZE + IP_HEADER_SIZE);
       tcph->recv_ack = 0xFFFFFFFF;
       goto finished;
     }
-    sendto_single(nf_idx, &cur_pkt);
+    sendto_single(nf_idx, pkt_buf, pkt_len);
   }
 finished:
-  sendto_single(nf_idx, &cur_pkt);
+  sendto_single(nf_idx, pkt_buf, pkt_len);
   // wait for switch to receive the 0xFFFFFFFF packet.
   sleep_for_cycles(1000000);
   return NULL;
@@ -129,7 +115,6 @@ void *batch_loop_func(int nf_idx) {
   }
 
   uint64_t start = rdcycle();
-  // uint64_t pkt_size_sum = 0;
   uint32_t pkt_num = 0;
   uint64_t(*buffers)[190] = buffers_all[nf_idx];
   int i = 0, len = 0;
@@ -138,10 +123,9 @@ void *batch_loop_func(int nf_idx) {
     nic_post_recv_batch(buffers, NUM_BUFS);
     for (i = 0; i < NUM_BUFS; i++) {
       len = nic_wait_recv();
-      nf_process[nf_idx]((uint8_t *)buffers[i] + NET_IP_ALIGN);
       // printf("[batch_loop_func %d] pkt_num %d\n", nf_idx, pkt_num);
+      nf_process[nf_idx]((uint8_t *)buffers[i] + NET_IP_ALIGN);
 
-      // pkt_size_sum += len;
       // !!! division operation on riscv take around 32-24 cycles, it is really
       // !!! costly (eg, bring 14.5Mpps to 0.45Mpps), we must avoid it
       // if (pkt_num % PRINT_INTERVAL == 0) {
@@ -239,6 +223,25 @@ void init_nfs_once() {
     printf("%s ", nf_names[i]);
   }
   printf("\n");
+
+  // setup pkt fifo
+  fifo_init(&global_pkt_ff);
+  for (int i = 0; i < NCORES; i++) {
+    fifo_init(&percore_pkt_ffs[i]);
+  }
+  uint64_t *pkt_buffer =
+      (uint64_t *)malloc(sizeof(uint64_t) * ETH_MAX_WORDS * FIFO_CAPACITY);
+  bool res = fifo_push(&global_pkt_ff, (intptr_t)pkt_buffer, 0);
+  pkt_buffer += ETH_MAX_WORDS;
+  while (res) {
+    res = fifo_push(&global_pkt_ff, (intptr_t)pkt_buffer, 0);
+    pkt_buffer += ETH_MAX_WORDS;
+  }
+  printf("global_pkt_ff size: %u\n", fifo_size(&global_pkt_ff));
+  for (int i = 0; i < NCORES; i++) {
+    printf("percore_pkt_ff size: %u\n", fifo_size(&percore_pkt_ffs[i]));
+  }
+
   arch_spin_unlock(&init_lock);
 }
 
