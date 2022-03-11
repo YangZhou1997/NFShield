@@ -1,7 +1,0 @@
-{
-  "benchmark_name" : "nf_workloads",
-  "common_bootbinary" : "nftop.riscv",
-  "common_rootfs" : null,
-  "common_outputs" : [],
-  "common_simulation_outputs" : ["uartlog"]
-}

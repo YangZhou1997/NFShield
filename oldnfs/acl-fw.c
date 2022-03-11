@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-
 #include "../utils/common.h"
 // #define VALUE_TYPE BOOL // hashset, bool
 #define TYPE bool
@@ -18,8 +17,8 @@
 // make sure we use the same about of memory as netbricks.
 #define HT_SIZE_ACL_FW 228571
 
-static bool_dleft_meta_t ht_meta_acl_fw;
-static bool_dleft_meta_t ht_meta_acl_fw_cache;
+static bool_dleft_meta_t ht_meta;
+static bool_dleft_meta_t ht_meta_cache;
 
 #define ACL_RULE_NUM 1596
 // #define ACL_RULE_NUM_USED 3192
@@ -99,7 +98,7 @@ static inline bool matches(five_tuple_t flow, acl_t acl)
             if((acl.valid_flag >> 4) & 0x1)
             {
                 five_tuple_t rev_flow = REVERSE(flow);
-                return (bool_dleft_lookup(&ht_meta_acl_fw, flow) != NULL || bool_dleft_lookup(&ht_meta_acl_fw, rev_flow) != NULL) == acl.established;
+                return (bool_dleft_lookup(&ht_meta, flow) != NULL || bool_dleft_lookup(&ht_meta, rev_flow) != NULL) == acl.established;
             }
             else
             {
@@ -114,7 +113,7 @@ static inline bool matches(five_tuple_t flow, acl_t acl)
 #define NTOHS(x) (((x & 0xF) << 4) | ((x >> 4) & 0xF))
 
 void recover_hashmap(){
-    FILE *file = fopen("./data/acl-fw-hashmap-dleft.raw", "r");
+    FILE *file = fopen("../data/acl-fw-hashmap-dleft.raw", "r");
     if (file == NULL){
         printf("recovery file open error");
         exit(0);
@@ -135,96 +134,98 @@ void recover_hashmap(){
         //     printf("recover: %x %x %hu %hu %hu\n", flow.srcip, flow.dstip, flow.srcport, flow.dstport, flow.proto);
         // }
         cnt++;
-        bool_dleft_update(&ht_meta_acl_fw_cache, flow, val == 1);
+        bool_dleft_update(&ht_meta_cache, flow, val == 1);
     }
-    // printf("acl-fw recover done\n");
+    printf("recover down\n");
 }
 
-static uint32_t pkt_cnt_acl_fw = 0;
-static uint32_t pkt_count_match = 0;
-
-int acl_fw_init(){
-    if(-1 == bool_dleft_init("acl-fw", HT_SIZE_ACL_FW, &ht_meta_acl_fw))
+int main(){
+    if(-1 == bool_dleft_init("acl-fw", HT_SIZE_ACL_FW, &ht_meta))
     {
         printf("bootmemory allocation error\n");
-        return -1;
+        return 0;
     }
-    if(-1 == bool_dleft_init("acl-fw-meta", HT_SIZE_ACL_FW, &ht_meta_acl_fw_cache))
+    if(-1 == bool_dleft_init("acl-fw-meta", HT_SIZE_ACL_FW, &ht_meta_cache))
     {
         printf("bootmemory allocation error\n");
-        return -1;
+        return 0;
     }
     fill_rules();
+
     srand((unsigned)time(NULL));
 
+    load_pkt("../data/ictf2010_100kflow.dat");
+    
+    uint32_t pkt_cnt = 0;
+    uint32_t pkt_count_match = 0;
+    
 // #define FW_DUMP
 #ifndef FW_DUMP
     recover_hashmap();
 #endif
-    printf("acl_fw init done!\n");
-    return 0;
-}
 
-void acl_fw(uint8_t *pkt_ptr){
-
-    swap_mac_addr(pkt_ptr);
-    
-    five_tuple_t flow;
-    get_five_tuple(pkt_ptr, &flow);
+    while(1){
+        pkt_t *raw_pkt = next_pkt(0);
+        uint8_t *pkt_ptr = raw_pkt->content;
+        uint16_t pkt_len = raw_pkt->len;
+        swap_mac_addr(pkt_ptr);
+        
+        five_tuple_t flow;
+        get_five_tuple(pkt_ptr, &flow);
 
 // #define DEBUG
 #ifdef DEBUG
-    uint64_t src_mac = get_src_mac(pkt_ptr);
-    uint64_t dst_mac = get_dst_mac(pkt_ptr);
-    if(pkt_cnt_acl_fw <= 8){
-        printf("%lx %lx %x %x %hu %hu %hu\n", src_mac, dst_mac, flow.srcip, flow.dstip, flow.srcport, flow.dstport, flow.proto);
-    }
-#endif
-
-	bool flag = false;
-	bool dropped = false;
-	bool *res_ptr = bool_dleft_lookup(&ht_meta_acl_fw_cache, flow);
-	if(res_ptr != NULL)
-	{
-        // printf("hit!\n");
-		dropped = *res_ptr;
-	}
-	else
-	{
-        for(int i = 0; i < ACL_RULE_NUM_USED; i++)
-        {
-            if(matches(flow, acls[i]))
-            {
-                if(!acls[i].drop) // record the dropped packet info
-                {
-                    bool_dleft_update(&ht_meta_acl_fw, flow, true);
-                }
-                flag = true;
-                dropped = false;
-                pkt_count_match ++;
-                break;
-            }
+        uint64_t src_mac = get_src_mac(pkt_ptr);
+        uint64_t dst_mac = get_dst_mac(pkt_ptr);
+        if(pkt_cnt <= 8){
+            printf("%lx %lx %x %x %hu %hu %hu\n", src_mac, dst_mac, flow.srcip, flow.dstip, flow.srcport, flow.dstport, flow.proto);
         }
-	    if(!flag)
-	    {
-	        dropped = true;
-	    }
-		bool_dleft_update(&ht_meta_acl_fw_cache, flow, dropped);
-	}
-
-    // if(pkt_cnt_acl_fw % PRINT_INTERVAL == 0) {
-    //     printf("acl-fw %u\n", pkt_cnt_acl_fw);
-    // }
-#ifdef FW_DUMP    
-    if(pkt_cnt_acl_fw == 1024 * 1024) {
-        bool_dleft_dump(&ht_meta_acl_fw_cache, "./data/acl-fw-hashmap-dleft.raw");
-        break;
-    }
 #endif
-    pkt_cnt_acl_fw ++;        
 
-}
-void acl_fw_destroy(){
-    bool_dleft_destroy(&ht_meta_acl_fw);
-    bool_dleft_destroy(&ht_meta_acl_fw_cache);
+		bool flag = false;
+		bool dropped = false;
+		bool *res_ptr = bool_dleft_lookup(&ht_meta_cache, flow);
+		if(res_ptr != NULL)
+		{
+            // printf("hit!\n");
+			dropped = *res_ptr;
+		}
+		else
+		{
+	        for(int i = 0; i < ACL_RULE_NUM_USED; i++)
+	        {
+	            if(matches(flow, acls[i]))
+	            {
+	                if(!acls[i].drop) // record the dropped packet info
+	                {
+	                    bool_dleft_update(&ht_meta, flow, true);
+	                }
+	                flag = true;
+	                dropped = false;
+	                pkt_count_match ++;
+	                break;
+	            }
+	        }
+		    if(!flag)
+		    {
+		        dropped = true;
+		    }
+			bool_dleft_update(&ht_meta_cache, flow, dropped);
+		}
+
+        if(pkt_cnt % PRINT_INTERVAL == 0) {
+            printf("acl-fw %u\n", pkt_cnt);
+        }
+#ifdef FW_DUMP    
+        if(pkt_cnt == 1024 * 1024) {
+            bool_dleft_dump(&ht_meta_cache, "../data/acl-fw-hashmap-dleft.raw");
+            break;
+        }
+#endif
+        pkt_cnt ++;        
+    }
+
+    bool_dleft_destroy(&ht_meta);
+    bool_dleft_destroy(&ht_meta_cache);
+    return 0;
 }
