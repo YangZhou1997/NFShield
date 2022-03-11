@@ -45,7 +45,8 @@ void *loop_func(int nf_idx) {
   nic_boot_pkt(nf_idx);
   barrier_wait(&nic_boot_pkt_barrier);
   // why this printf is necessary to keep program running correctly?
-  printf("%d loop_func after barrier_wait\n", nf_idx);
+  // printf("%d loop_func after barrier_wait\n", nf_idx);
+  asm volatile("fence");
 
   // the rest of core will busy spin
   if (nf_idx >= num_nfs) {
@@ -116,7 +117,8 @@ void *batch_loop_func(int nf_idx) {
 
   nic_boot_pkt(nf_idx);
   barrier_wait(&nic_boot_pkt_barrier);
-  printf("%d loop_func after barrier_wait\n", nf_idx);
+  // printf("%d loop_func after barrier_wait\n", nf_idx);
+  asm volatile("fence");
 
   // the rest of core will busy spin
   if (nf_idx >= num_nfs) {
