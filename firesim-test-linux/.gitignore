@@ -1,0 +1,5 @@
+*.o
+/test_latency
+/client
+/server
+/data

@@ -1,0 +1,3 @@
+./nftop -n lpm -n dpi -n monitoring -n acl_fw -d 00:12:6d:00:00:03
+
+./pktgen -n 4 -d 00:12:6d:00:00:02
