@@ -39,7 +39,7 @@ void *loop_func(int nf_idx) {
     }
   }
 
-  nic_boot_pkt(nf_idx);
+  nic_boot_pkt(nf_idx, num_nfs);
   barrier_wait(&nic_boot_pkt_barrier);
   // why this printf is necessary to keep program running correctly?
   // just waiting for NIC initilization finished; either code works
@@ -105,7 +105,7 @@ void *batch_loop_func(int nf_idx) {
     }
   }
 
-  nic_boot_pkt(nf_idx);
+  nic_boot_pkt(nf_idx, num_nfs);
   barrier_wait(&nic_boot_pkt_barrier);
   // just waiting for NIC initilization finished; either code works
   // printf("%d loop_func after barrier_wait\n", nf_idx);

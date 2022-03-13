@@ -27,7 +27,7 @@ arch_spinlock_t icenet_lock;
  * before starting the tests.
  */
 #define BOOT_PKT_LEN 64
-static void nic_boot_pkt(int nf_idx) {
+static void nic_boot_pkt(int nf_idx, int num_nfs) {
   unsigned long len = BOOT_PKT_LEN;
   uint8_t buf[BOOT_PKT_LEN];
 
@@ -45,7 +45,7 @@ static void nic_boot_pkt(int nf_idx) {
   ipv4->version_ihl = 0x45;
   ipv4->type_of_service = 0;
   ipv4->total_length = htons(BOOT_PKT_LEN - ETH_HEADER_SIZE);
-  ipv4->packet_id = htons(1);
+  ipv4->packet_id = htons((uint16_t)num_nfs);
   ipv4->fragment_offset = htons(0);
   ipv4->time_to_live = 64;
   ipv4->next_proto_id = LNIC_PROTO;
