@@ -24,14 +24,11 @@ static int (*nf_init[8])();
 static void (*nf_process[8])(uint8_t *);
 static void (*nf_destroy[8])();
 
-#define WARMUP_NPKTS 10000
-#define TEST_NPKTS 20000
 #define PRINT_INTERVAL 10000
 
 #define NCORES 4
-static int num_nfs = 0;
-
 barrier_t nic_boot_pkt_barrier;
+static int num_nfs = 0;
 
 void *loop_func(int nf_idx) {
   printf("loop_func nf_idx %d num_nfs %d\n", nf_idx, num_nfs);
@@ -65,17 +62,14 @@ void *loop_func(int nf_idx) {
       // sleep_for_cycles(100);
       continue;
     }
-    // printf("[loop_func %d] receiving numpkts %d\n", nf_idx, numpkts);
     nf_process[nf_idx]((uint8_t *)pkt_buf + NET_IP_ALIGN);
-
     pkt_num++;
-    if (pkt_num >= TEST_NPKTS + WARMUP_NPKTS) {
+
+    struct tcp_hdr *tcph =
+        (struct tcp_hdr *)((uint8_t *)pkt_buf + NET_IP_ALIGN + ETH_HEADER_SIZE +
+                           IP_HEADER_SIZE);
+    if (tcph->recv_ack == 0xFFFFFFFF) {
       end = rdcycle();
-      // stopping the pktgen.
-      struct tcp_hdr *tcph =
-          (struct tcp_hdr *)((uint8_t *)pkt_buf + NET_IP_ALIGN +
-                             ETH_HEADER_SIZE + IP_HEADER_SIZE);
-      tcph->recv_ack = 0xFFFFFFFF;
       goto finished;
     }
     sendto_single(nf_idx, pkt_buf, pkt_len);
@@ -84,6 +78,7 @@ void *loop_func(int nf_idx) {
 finished:
   sendto_single(nf_idx, pkt_buf, pkt_len);
   asm volatile("fence");
+
   // wait for switch to receive the 0xFFFFFFFF packet.
   sleep_for_cycles(1000000);
   nf_destroy[nf_idx]();
@@ -91,10 +86,10 @@ finished:
   // finally, print out the rate
   double time_taken = (rdcycle() - start) / CPU_GHZ * 1e-3;
   printf(
-      "%s (nf_idx %u): processed pkts %u, elapsed time %lu us, "
+      "%s (nf_idx %u) done: processed pkts %u, elapsed time %lu us, "
       "processing rate %lu Kpps\n",
-      nf_names[nf_idx], nf_idx, TEST_NPKTS + WARMUP_NPKTS, (uint64_t)time_taken,
-      (uint64_t)((TEST_NPKTS + WARMUP_NPKTS) / time_taken * 1e3));
+      nf_names[nf_idx], nf_idx, pkt_num, (uint64_t)time_taken,
+      (uint64_t)((pkt_num) / time_taken * 1e3));
   return NULL;
 }
 
@@ -131,24 +126,18 @@ void *batch_loop_func(int nf_idx) {
     nic_post_recv_batch(buffers, NUM_BUFS);
     for (i = 0; i < NUM_BUFS; i++) {
       len = nic_wait_recv();
-      // printf("[batch_loop_func %d] pkt_num %d\n", nf_idx, pkt_num);
       nf_process[nf_idx]((uint8_t *)buffers[i] + NET_IP_ALIGN);
+      pkt_num++;
 
       // !!! division operation on riscv take around 32-24 cycles, it is really
       // !!! costly (eg, bring 14.5Mpps to 0.45Mpps), we must avoid it
-      // if (pkt_num % PRINT_INTERVAL == 0) {
-      //   printf("%s (nf_idx %u): pkts received %u, avg_pkt_size %lu\n",
-      //          nf_names[nf_idx], nf_idx, pkt_num, pkt_size_sum / pkt_num);
-      // }
+      // if (pkt_num % PRINT_INTERVAL == 0) { /* blabla */}
 
-      pkt_num++;
-      if (pkt_num >= TEST_NPKTS + WARMUP_NPKTS) {
+      struct tcp_hdr *tcph =
+          (struct tcp_hdr *)((uint8_t *)buffers[i] + NET_IP_ALIGN +
+                             ETH_HEADER_SIZE + IP_HEADER_SIZE);
+      if (tcph->recv_ack == 0xFFFFFFFF) {
         end = rdcycle();
-        // stopping the pktgen.
-        struct tcp_hdr *tcph =
-            (struct tcp_hdr *)((uint8_t *)buffers[i] + NET_IP_ALIGN +
-                               ETH_HEADER_SIZE + IP_HEADER_SIZE);
-        tcph->recv_ack = 0xFFFFFFFF;
         goto finished;
       }
       nic_post_send(buffers[i], len);
@@ -162,6 +151,7 @@ finished:
   nic_post_send(buffers[i], len);
   nic_wait_send_batch(i + 1);
   asm volatile("fence");
+
   // wait for switch to receive the 0xFFFFFFFF packet.
   sleep_for_cycles(1000000);
   nf_destroy[nf_idx]();
@@ -169,10 +159,10 @@ finished:
   // finally, print out the rate
   double time_taken = (rdcycle() - start) / CPU_GHZ * 1e-3;
   printf(
-      "%s (nf_idx %u): processed pkts %u, elapsed time %lu us, "
+      "%s (nf_idx %u) done: processed pkts %u, elapsed time %lu us, "
       "processing rate %lu Kpps\n",
-      nf_names[nf_idx], nf_idx, TEST_NPKTS + WARMUP_NPKTS, (uint64_t)time_taken,
-      (uint64_t)((TEST_NPKTS + WARMUP_NPKTS) / time_taken * 1e3));
+      nf_names[nf_idx], nf_idx, pkt_num, (uint64_t)time_taken,
+      (uint64_t)((pkt_num) / time_taken * 1e3));
   return NULL;
 }
 
