@@ -59,7 +59,13 @@ void *loop_func(int nf_idx) {
   uint32_t pkt_num = 0;
   intptr_t pkt_buf = 0;
   int pkt_len = 0;
-  while (recvfrom_single(nf_idx, &pkt_buf, &pkt_len)) {
+  while (1) {
+    int numpkts = recvfrom_single(nf_idx, &pkt_buf, &pkt_len);
+    if (numpkts == 0) {
+      // sleep_for_cycles(100);
+      continue;
+    }
+    // printf("[loop_func %d] receiving numpkts %d\n", nf_idx, numpkts);
     nf_process[nf_idx]((uint8_t *)pkt_buf + NET_IP_ALIGN);
 
     pkt_num++;
@@ -125,6 +131,7 @@ void *batch_loop_func(int nf_idx) {
     nic_post_recv_batch(buffers, NUM_BUFS);
     for (i = 0; i < NUM_BUFS; i++) {
       len = nic_wait_recv();
+      // printf("[batch_loop_func %d] pkt_num %d\n", nf_idx, pkt_num);
       nf_process[nf_idx]((uint8_t *)buffers[i] + NET_IP_ALIGN);
 
       // !!! division operation on riscv take around 32-24 cycles, it is really
