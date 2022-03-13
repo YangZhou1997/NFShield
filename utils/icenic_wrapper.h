@@ -86,11 +86,19 @@ int recvfrom_single(int core_id, intptr_t *pkt_buf, int *pkt_len) {
   // identify which core this pkt should head to
   struct ether_hdr *eh_recv =
       (struct ether_hdr *)((uint8_t *)new_pkt_buf + NET_IP_ALIGN);
+  struct tcp_hdr *tcph =
+      (struct tcp_hdr *)((uint8_t *)new_pkt_buf + NET_IP_ALIGN +
+                         sizeof(struct ether_hdr) + sizeof(struct ipv4_hdr));
   int ether_type = (int)htons((eh_recv->ether_type));
   int nf_idx = ether_type - CUSTOM_PROTO_BASE;
-  if (nf_idx < 0 || nf_idx >= NCORES) {
-    printf("recvfrom_single nf_idx error %d\n", nf_idx);
-    exit(0);
+  if (nf_idx < 0 || nf_idx >= NCORES || tcph->sent_seq != 0xdeadbeef) {
+    // printf("recvfrom_single packet error %d %x\n", nf_idx, tcph->sent_seq);
+    bool res = fifo_push(&global_pkt_ff, new_pkt_buf, 0);
+    if (!res) {
+      printf("recvfrom_single global fifo_push error\n");
+      exit(0);
+    }
+    return 0;
   }
 
   // lucky, getting the right packet
