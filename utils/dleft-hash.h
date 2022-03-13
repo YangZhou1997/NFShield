@@ -58,7 +58,7 @@ int TYPED_NAME(dleft_init)(char *table_name, uint32_t entry_num,
   cvmx_dprintf("memory size: %lfMB\n", whole_size * 1.0 / 1024 / 1024);
 #else
   printf("TYPE size: %luB\n", sizeof(TYPE));
-  printf("memory size: %lfMB\n", whole_size * 1.0 / 1024 / 1024);
+  printf("memory size: %uMB\n", (uint32_t)(whole_size * 1.0 / 1024 / 1024));
 #endif
 
   block_ptr = malloc(whole_size);
