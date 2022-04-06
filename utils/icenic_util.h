@@ -7,12 +7,29 @@
 // around the icenic registers
 
 #define SIMPLENIC_BASE 0x10016000L
-#define SIMPLENIC_SEND_REQ (SIMPLENIC_BASE + 0)
-#define SIMPLENIC_RECV_REQ (SIMPLENIC_BASE + 8)
-#define SIMPLENIC_SEND_COMP (SIMPLENIC_BASE + 16)
-#define SIMPLENIC_RECV_COMP (SIMPLENIC_BASE + 18)
-#define SIMPLENIC_COUNTS (SIMPLENIC_BASE + 20)
-#define SIMPLENIC_MACADDR (SIMPLENIC_BASE + 24)
+#define STEP_SIZE (51)
+const int SIMPLENIC_SEND_REQ[4] = {
+    (SIMPLENIC_BASE + 0), (SIMPLENIC_BASE + 0 + STEP_SIZE),
+    (SIMPLENIC_BASE + 0 + STEP_SIZE * 2), (SIMPLENIC_BASE + 0 + STEP_SIZE * 3)};
+const int SIMPLENIC_RECV_REQ[4] = {
+    (SIMPLENIC_BASE + 8), (SIMPLENIC_BASE + 8 + STEP_SIZE),
+    (SIMPLENIC_BASE + 8 + STEP_SIZE * 2), (SIMPLENIC_BASE + 8 + STEP_SIZE * 3)};
+const int SIMPLENIC_SEND_COMP[4] = {(SIMPLENIC_BASE + 16),
+                                    (SIMPLENIC_BASE + 16 + STEP_SIZE),
+                                    (SIMPLENIC_BASE + 16 + STEP_SIZE * 2),
+                                    (SIMPLENIC_BASE + 16 + STEP_SIZE * 3)};
+const int SIMPLENIC_RECV_COMP[4] = {(SIMPLENIC_BASE + 18),
+                                    (SIMPLENIC_BASE + 18 + STEP_SIZE),
+                                    (SIMPLENIC_BASE + 18 + STEP_SIZE * 2),
+                                    (SIMPLENIC_BASE + 18 + STEP_SIZE * 3)};
+const int SIMPLENIC_COUNTS[4] = {(SIMPLENIC_BASE + 20),
+                                 (SIMPLENIC_BASE + 20 + STEP_SIZE),
+                                 (SIMPLENIC_BASE + 20 + STEP_SIZE * 2),
+                                 (SIMPLENIC_BASE + 20 + STEP_SIZE * 3)};
+const int SIMPLENIC_MACADDR[4] = {(SIMPLENIC_BASE + 24),
+                                  (SIMPLENIC_BASE + 24 + STEP_SIZE),
+                                  (SIMPLENIC_BASE + 24 + STEP_SIZE * 2),
+                                  (SIMPLENIC_BASE + 24 + STEP_SIZE * 3)};
 
 #define NIC_COUNT_SEND_REQ 0
 #define NIC_COUNT_RECV_REQ 8
@@ -23,71 +40,76 @@
 #include "mmio.h"
 #include "pkt-header.h"
 
-static inline int nic_send_req_avail(void) {
-  return reg_read32(SIMPLENIC_COUNTS) & 0xff;
+static inline int nic_send_req_avail(int cid) {
+  return reg_read32(SIMPLENIC_COUNTS[cid]) & 0xff;
 }
 
-static inline int nic_recv_req_avail(void) {
-  return (reg_read32(SIMPLENIC_COUNTS) >> 8) & 0xff;
+static inline int nic_recv_req_avail(int cid) {
+  return (reg_read32(SIMPLENIC_COUNTS[cid]) >> 8) & 0xff;
 }
 
-static inline int nic_send_comp_avail(void) {
-  return (reg_read32(SIMPLENIC_COUNTS) >> 16) & 0xff;
+static inline int nic_send_comp_avail(int cid) {
+  return (reg_read32(SIMPLENIC_COUNTS[cid]) >> 16) & 0xff;
 }
 
-static inline int nic_recv_comp_avail(void) {
-  return (reg_read32(SIMPLENIC_COUNTS) >> 24) & 0xff;
+static inline int nic_recv_comp_avail(int cid) {
+  return (reg_read32(SIMPLENIC_COUNTS[cid]) >> 24) & 0xff;
 }
 
-static void nic_send(void *data, unsigned long len) {
+static void nic_send(int cid, void *data, unsigned long len) {
   uintptr_t addr = ((uintptr_t)data) & ((1L << 48) - 1);
   unsigned long packet = (len << 48) | addr;
 
-  while (nic_send_req_avail() == 0)
+  while (nic_send_req_avail(cid) == 0)
     ;
-  reg_write64(SIMPLENIC_SEND_REQ, packet);
+  reg_write64(SIMPLENIC_SEND_REQ[cid], packet);
 
-  while (nic_send_comp_avail() == 0)
+  while (nic_send_comp_avail(cid) == 0)
     ;
-  reg_read16(SIMPLENIC_SEND_COMP);
+  reg_read16(SIMPLENIC_SEND_COMP[cid]);
 }
 
-static int nic_recv(void *dest) {
+static int nic_recv(int cid, void *dest) {
   uintptr_t addr = (uintptr_t)dest;
   int len;
 
-  while (nic_recv_req_avail() == 0)
+  while (nic_recv_req_avail(cid) == 0)
     ;
-  reg_write64(SIMPLENIC_RECV_REQ, addr);
+  reg_write64(SIMPLENIC_RECV_REQ[cid], addr);
 
   // Poll for completion
-  while (nic_recv_comp_avail() == 0)
+  while (nic_recv_comp_avail(cid) == 0)
     ;
-  len = reg_read16(SIMPLENIC_RECV_COMP);
+  len = reg_read16(SIMPLENIC_RECV_COMP[cid]);
   asm volatile("fence");
 
   return len;
 }
 
-static inline uint32_t nic_counts(void) { return reg_read32(SIMPLENIC_COUNTS); }
+static inline uint32_t nic_counts(int cid) {
+  return reg_read32(SIMPLENIC_COUNTS[cid]);
+}
 
-static inline void nic_post_send_no_check(uint64_t addr, uint64_t len) {
+static inline void nic_post_send_no_check(int cid, uint64_t addr,
+                                          uint64_t len) {
   uint64_t request = ((len & 0x7fff) << 48) | (addr & 0xffffffffffffL);
-  reg_write64(SIMPLENIC_SEND_REQ, request);
+  reg_write64(SIMPLENIC_SEND_REQ[cid], request);
 }
 
-static inline void nic_complete_send(void) { reg_read16(SIMPLENIC_SEND_COMP); }
-
-static inline void nic_post_recv_no_check(uint64_t addr) {
-  reg_write64(SIMPLENIC_RECV_REQ, addr);
+static inline void nic_complete_send(int cid) {
+  reg_read16(SIMPLENIC_SEND_COMP[cid]);
 }
 
-static inline uint16_t nic_complete_recv(void) {
-  return reg_read16(SIMPLENIC_RECV_COMP);
+static inline void nic_post_recv_no_check(int cid, uint64_t addr) {
+  reg_write64(SIMPLENIC_RECV_REQ[cid], addr);
 }
 
-static inline uint64_t nic_macaddr(void) {
-  return reg_read64(SIMPLENIC_MACADDR);
+static inline uint16_t nic_complete_recv(int cid) {
+  return reg_read16(SIMPLENIC_RECV_COMP[cid]);
+}
+
+static inline uint64_t nic_macaddr(int cid) {
+  return reg_read64(SIMPLENIC_MACADDR[cid]);
 }
 
 #define IPV4_ETHTYPE 0x0800
@@ -177,48 +199,49 @@ static int checksum(uint16_t *data, int len) {
 
 /* Post a send request
  */
-static void nic_post_send(void *buf, uint64_t len) {
+static void nic_post_send(int cid, void *buf, uint64_t len) {
   uintptr_t addr = ((uintptr_t)buf) & ((1L << 48) - 1);
   unsigned long packet = (len << 48) | addr;
-  while (nic_send_req_avail() == 0)
+  while (nic_send_req_avail(cid) == 0)
     ;
-  reg_write64(SIMPLENIC_SEND_REQ, packet);
+  reg_write64(SIMPLENIC_SEND_REQ[cid], packet);
 }
 
 /* Wait for all send operations to complete
  */
-static void nic_wait_send_batch(int tx_count) {
+static void nic_wait_send_batch(int cid, int tx_count) {
   int i;
 
   for (i = 0; i < tx_count; i++) {
     // Poll for completion
-    while (nic_send_comp_avail() == 0)
+    while (nic_send_comp_avail(cid) == 0)
       ;
-    reg_read16(SIMPLENIC_SEND_COMP);
+    reg_read16(SIMPLENIC_SEND_COMP[cid]);
   }
 }
 
 /* Post a batch of RX requests
  */
-static void nic_post_recv_batch(uint64_t bufs[][ETH_MAX_WORDS], int rx_count) {
+static void nic_post_recv_batch(int cid, uint64_t bufs[][ETH_MAX_WORDS],
+                                int rx_count) {
   int i;
   for (i = 0; i < rx_count; i++) {
     uintptr_t addr = (uintptr_t)bufs[i];
-    while (nic_recv_req_avail() == 0)
+    while (nic_recv_req_avail(cid) == 0)
       ;
-    reg_write64(SIMPLENIC_RECV_REQ, addr);
+    reg_write64(SIMPLENIC_RECV_REQ[cid], addr);
   }
 }
 
 /* Wait for a receive to complete
  */
-static int nic_wait_recv() {
+static int nic_wait_recv(int cid) {
   int len;
 
   // Poll for completion
-  while (nic_recv_comp_avail() == 0)
+  while (nic_recv_comp_avail(cid) == 0)
     ;
-  len = reg_read16(SIMPLENIC_RECV_COMP);
+  len = reg_read16(SIMPLENIC_RECV_COMP[cid]);
   asm volatile("fence");
 
   return len;
@@ -228,12 +251,12 @@ static int nic_wait_recv() {
  * Receive and parse Eth/IP/LNIC headers.
  * Only return once lnic pkt is received.
  */
-static int nic_recv_lnic(void *buf, struct lnic_hdr **lnic) {
+static int nic_recv_lnic(int cid, void *buf, struct lnic_hdr **lnic) {
   struct ipv4_hdr *ipv4;
   int len;
 
   // receive pkt
-  len = nic_recv(buf);
+  len = nic_recv(cid, buf);
 
   ipv4 = buf + ETH_HEADER_SIZE;
   // parse lnic hdr

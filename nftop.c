@@ -54,14 +54,10 @@ void *loop_func(int nf_idx) {
   uint64_t start = rdcycle();
   uint64_t end = 0;
   uint32_t pkt_num = 0;
-  intptr_t pkt_buf = 0;
+  uint8_t pkt_buf[ETH_MAX_WORDS * 8];
   int pkt_len = 0;
   while (1) {
-    int numpkts = recvfrom_single(nf_idx, &pkt_buf, &pkt_len);
-    if (numpkts == 0) {
-      // sleep_for_cycles(100);
-      continue;
-    }
+    recvfrom_single(nf_idx, (intptr_t)pkt_buf, &pkt_len);
     nf_process[nf_idx]((uint8_t *)pkt_buf + NET_IP_ALIGN);
     pkt_num++;
 
@@ -123,9 +119,9 @@ void *batch_loop_func(int nf_idx) {
   int i = 0, len = 0;
 
   while (1) {
-    nic_post_recv_batch(buffers, NUM_BUFS);
+    nic_post_recv_batch(nf_idx, buffers, NUM_BUFS);
     for (i = 0; i < NUM_BUFS; i++) {
-      len = nic_wait_recv();
+      len = nic_wait_recv(nf_idx);
       nf_process[nf_idx]((uint8_t *)buffers[i] + NET_IP_ALIGN);
       pkt_num++;
 
@@ -140,16 +136,16 @@ void *batch_loop_func(int nf_idx) {
         end = rdcycle();
         goto finished;
       }
-      nic_post_send(buffers[i], len);
+      nic_post_send(nf_idx, buffers[i], len);
     }
     // wait for all send operations to complete
-    nic_wait_send_batch(NUM_BUFS);
+    nic_wait_send_batch(nf_idx, NUM_BUFS);
     asm volatile("fence");
   }
 
 finished:
-  nic_post_send(buffers[i], len);
-  nic_wait_send_batch(i + 1);
+  nic_post_send(nf_idx, buffers[i], len);
+  nic_wait_send_batch(nf_idx, i + 1);
   asm volatile("fence");
 
   // wait for switch to receive the 0xFFFFFFFF packet.
@@ -226,24 +222,6 @@ void init_nfs_once() {
   }
   printf("\n");
 
-  // setup pkt fifo
-  fifo_init(&global_pkt_ff);
-  for (int i = 0; i < NCORES; i++) {
-    fifo_init(&percore_pkt_ffs[i]);
-  }
-  uint64_t *pkt_buffer =
-      (uint64_t *)malloc(sizeof(uint64_t) * ETH_MAX_WORDS * FIFO_CAPACITY);
-  bool res = fifo_push(&global_pkt_ff, (intptr_t)pkt_buffer, 0);
-  pkt_buffer += ETH_MAX_WORDS;
-  while (res) {
-    res = fifo_push(&global_pkt_ff, (intptr_t)pkt_buffer, 0);
-    pkt_buffer += ETH_MAX_WORDS;
-  }
-  printf("global_pkt_ff size: %u\n", fifo_size(&global_pkt_ff));
-  for (int i = 0; i < NCORES; i++) {
-    printf("percore_pkt_ff size: %u\n", fifo_size(&percore_pkt_ffs[i]));
-  }
-
   arch_spin_unlock(&init_lock);
 }
 
@@ -251,15 +229,10 @@ void thread_entry(int cid, int nc) {
   init_nfs_once();
   // only num_nfs cores are running NFs
 
-  if (num_nfs == 1) {
-    // currently, overlapping packet IO with computation via batching requires
-    // the NF to exclusively occypy the register set, thus only supporting one
-    // NF
-    // batch_loop_func(cid);  // 14.2Mpps l2_fwd
-    loop_func(cid);  // 8.85Mpps l2_fwd
-  } else {
-    // If we disallow batchinng, using simple spinlock can let multiple NFs
-    // share the same register set, but this is less efficient.
-    loop_func(cid);  // 8.85Mpps l2_fwd
-  }
+  // overlapping packet IO with computation via batching requires the NF to
+  // exclusively occypy the register set
+  batch_loop_func(cid);  // 14.2Mpps l2_fwd
+
+  // we can also disallow batching
+  // loop_func(cid);  // 8.85Mpps l2_fwd
 }
