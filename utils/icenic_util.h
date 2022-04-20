@@ -7,7 +7,7 @@
 // around the icenic registers
 
 #define SIMPLENIC_BASE 0x10016000L
-#define STEP_SIZE (51)
+#define STEP_SIZE (0x40)
 const int SIMPLENIC_SEND_REQ[4] = {
     (SIMPLENIC_BASE + 0), (SIMPLENIC_BASE + 0 + STEP_SIZE),
     (SIMPLENIC_BASE + 0 + STEP_SIZE * 2), (SIMPLENIC_BASE + 0 + STEP_SIZE * 3)};
