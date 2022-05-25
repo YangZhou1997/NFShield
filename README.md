@@ -1,4 +1,4 @@
-# NFs and pktgen running on FireSim-simulated riscv64 buildroot SMP linux
+# NFs and pktgen running on qemu-emulated riscv64 buildroot SMP linux
 
 ## Install git LFS to get the data files (if you has not installed)
 ```
