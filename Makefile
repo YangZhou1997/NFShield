@@ -5,7 +5,7 @@ CCP := arm-linux-gnueabi-g++
 
 
 # Needed for support of v7 assembly instructions on ARM architecture
-# ARM_FLAGS := -march=armv7-a -marm
+ARM_FLAGS := -march=armv7-a -marm
 
 CFLAGS := -g -O3 $(ARM_FLAGS) -lm
 

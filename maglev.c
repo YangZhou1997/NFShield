@@ -41,9 +41,9 @@ int main(){
         set_dst_ip(pkt_ptr, lookup_value);
 
         pkt_cnt ++;
-        // if(pkt_cnt % PRINT_INTERVAL == 0) {
-        //     printf("maglev %u\n", pkt_cnt);
-        // }
+        if(pkt_cnt % PRINT_INTERVAL == 0) {
+            printf("maglev %u\n", pkt_cnt);
+        }
     }    
     maglev_destory(&mag_meta);
 

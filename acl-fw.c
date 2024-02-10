@@ -209,10 +209,10 @@ int main(){
 			dleft_update(&ht_meta_cache, flow, dropped);
 		}
 
-#ifdef FW_DUMP    
         if(pkt_cnt % PRINT_INTERVAL == 0) {
             printf("acl-fw %u\n", pkt_cnt);
         }
+#ifdef FW_DUMP    
         if(pkt_cnt == 1024 * 1024) {
             dleft_dump(&ht_meta_cache, "/users/yangzhou/NFShield/data/acl_fw_hashmap_dleft.raw");
             break;
