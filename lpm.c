@@ -35,6 +35,7 @@ int main(){
         pkt_t *raw_pkt = next_pkt();
         uint8_t *pkt_ptr = raw_pkt->content;
         uint16_t pkt_len = raw_pkt->len;
+        if (pkt_ptr == NULL || pkt_len < 54 || pkt_len > 1500) continue;
         swap_mac_addr(pkt_ptr);
         uint32_t srcip = get_src_ip(pkt_ptr);
         uint16_t gate = lpm_lookup(iplookup, srcip);
