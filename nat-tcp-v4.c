@@ -22,7 +22,7 @@ int main(){
     
     srand((unsigned)time(NULL));
    
-    load_pkt("/users/yangzhou/ictf2010_100kflow.dat");
+    load_pkt("/users/yangzhou/NFShield/data/ictf2010_100kflow.dat");
     int FAU_PORTS = 0;
     uint32_t pkt_cnt = 0;
     while(1){
