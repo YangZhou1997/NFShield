@@ -75,9 +75,9 @@ int main(){
         }
 
         pkt_cnt ++;
-        // if(pkt_cnt % PRINT_INTERVAL == 0) {
-        //     printf("nat-tcp-v4 %u\n", pkt_cnt);
-        // }
+        if(pkt_cnt % PRINT_INTERVAL == 0) {
+            printf("nat-tcp-v4 %u\n", pkt_cnt);
+        }
     }    
     dleft_destroy(&ht_meta);
 
