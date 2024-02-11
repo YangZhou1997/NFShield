@@ -24,7 +24,6 @@ typedef struct _pkt
 
 pkt_t pkts[PKT_NUM];
 
-char buf[9000];
 void load_pkt(char *filename){
     printf("trying to open file %s\n", filename);
     FILE * file = fopen(filename, "r");
@@ -37,17 +36,9 @@ void load_pkt(char *filename){
     uint32_t pkt_size = 0;
     while(1){
         fread(&pkts[pkt_cnt].len, sizeof(uint16_t), 1, file);
-        if (pkts[pkt_cnt].len < 54 || pkts[pkt_cnt].len > 1500) {
-          fread(buf, 1, pkts[pkt_cnt].len, file);
-          continue;
-        }
-        pkts[pkt_cnt].content = (uint8_t *)malloc(2048);
-        if (pkts[pkt_cnt].content == NULL) {
-          fread(buf, 1, pkts[pkt_cnt].len, file);
-          continue;
-        }
-        fread(pkts[pkt_cnt].content, 1, pkts[pkt_cnt].len, file);
         pkt_size += pkts[pkt_cnt].len;
+        pkts[pkt_cnt].content = (uint8_t *)malloc(pkts[pkt_cnt].len);
+        fread(pkts[pkt_cnt].content, 1, pkts[pkt_cnt].len, file);
         pkt_cnt ++;
         if(pkt_cnt == PKT_NUM){
             break;
@@ -58,7 +49,7 @@ void load_pkt(char *filename){
 }
 
 pkt_t *next_pkt(){
-    int zipf_r = popzipf(PKT_NUM, 1.1) % PKT_NUM;
+    int zipf_r = popzipf(PKT_NUM, 1.1);
     return pkts + zipf_r;
 }
 
