@@ -4,3 +4,4 @@ nftop
 *.o
 .vscode/
 syscalls_test
+data_orig
